@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import traceback
-
+from database import engine, Base  # Import Base and engine
 from auth.routes import router as auth_router
+from auth import models  # Import models to ensure they're registered
+
+# Create all tables
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Import-Export Intelligence System")
 
