@@ -83,4 +83,8 @@ risk_level VARCHAR(20),
 reason TEXT,
 model_version VARCHAR(20),
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+<<<<<<< HEAD
 );
+=======
+);
+>>>>>>> 997a01f634055995c9d34d7ae9fe048bb37887da
