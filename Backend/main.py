@@ -46,4 +46,9 @@ async def startup():
     
     # Start WebSocket PG listener background task
     asyncio.create_task(listen_to_pg_tracking())
-
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    print("=== INTERNAL SERVER ERROR ===")
+    print(traceback.format_exc())
+    return {"detail": "Internal Server Error"}

@@ -110,4 +110,4 @@ FOR EACH ROW EXECUTE FUNCTION notify_tracking_update();
 
 CREATE TRIGGER shipments_status_update_notify_trigger
 AFTER UPDATE ON shipments
-FOR EACH ROW EXECUTE FUNCTION notify_tracking_update();
+FOR EACH ROW EXECUTE FUNCTION notify_tracking_update();
