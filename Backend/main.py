@@ -5,8 +5,10 @@ import traceback
 from dotenv import load_dotenv
 
 from database import engine, Base
-from routers import document
+from routers import document, shipment, tracking
 from auth.routes import router as auth_router
+import asyncio
+from services.websocket_service import listen_to_pg_tracking
 
 # Load env
 load_dotenv()
@@ -28,6 +30,8 @@ app.add_middleware(
 # Routers
 app.include_router(document.router)
 app.include_router(auth_router)
+app.include_router(shipment.router)
+app.include_router(tracking.router)
 
 # Root endpoint
 @app.get("/")
@@ -39,10 +43,7 @@ async def root():
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    print("=== INTERNAL SERVER ERROR ===")
-    print(traceback.format_exc())
-    return {"detail": "Internal Server Error"}
+    
+    # Start WebSocket PG listener background task
+    asyncio.create_task(listen_to_pg_tracking())
+

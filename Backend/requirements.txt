@@ -1,7 +1,9 @@
 fastapi[standard]
 uvicorn[standard]
 sqlalchemy
+asyncpg
 psycopg2-binary
+pdfplumber
 alembic
 redis
 aiokafka
@@ -24,3 +26,4 @@ passlib[bcrypt]==1.7.4
 pyjwt==2.10.1
 python-jose[cryptography]==3.3.0
 python-dotenv==1.0.1
+gensim

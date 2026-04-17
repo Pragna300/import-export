@@ -1,11 +1,14 @@
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import async_session, get_db
-from models.models import Document, Shipment
-from schemas.schemas import DocumentResponse
+from models.models import Document, Shipment, HSNClassification
+from schemas.schemas import DocumentResponse, ShipmentCreate
 from services.ocr_service import extract_text_from_file, process_invoice_with_llm
+from services.hsn_service import predict_hsn_code
+from pydantic import ValidationError
 import shutil
 import os
+import uuid
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -29,26 +32,52 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
         if "error" in structured_json:
             doc.status = "Failed"
         else:
-            doc.status = "Completed"
+            try:
+                validated_data = ShipmentCreate(**structured_json)
+                doc.status = "Completed"
 
-            new_shipment = Shipment(
-                product_name=structured_json.get("product_name"),
-                quantity=int(structured_json.get("quantity", 0)),
-                unit_price=float(structured_json.get("price", 0)),
-                origin_country=structured_json.get("country")
-            )
+                new_shipment = Shipment(
+                    shipment_code=f"SHP-{uuid.uuid4().hex[:8].upper()}",
+                    product_name=validated_data.product_name,
+                    quantity=validated_data.quantity,
+                    unit_price=validated_data.price,
+                    total_value=(validated_data.quantity * validated_data.price) if validated_data.quantity and validated_data.price else 0,
+                    origin_country=validated_data.country,
+                    destination_country=validated_data.destination_country,
+                    description=validated_data.description,
+                    currency=validated_data.currency,
+                    status="Pending"
+                )
 
-            db.add(new_shipment)
-            await db.commit()
-            await db.refresh(new_shipment)
+                db.add(new_shipment)
+                await db.commit()
+                await db.refresh(new_shipment)
 
-            doc.shipment_id = new_shipment.id
+                doc.shipment_id = new_shipment.id
+
+                # HSN native integration
+                hsn_prediction = await predict_hsn_code(new_shipment.product_name)
+                hsn_classification = HSNClassification(
+                    shipment_id=new_shipment.id,
+                    product_name=new_shipment.product_name,
+                    hsn_code=str(hsn_prediction.get("hsn_code")),
+                    confidence_score=hsn_prediction.get("confidence_score"),
+                    model_version=hsn_prediction.get("model_version")
+                )
+                db.add(hsn_classification)
+            except ValidationError as ve:
+                print("Validation Error:", ve)
+                doc.status = "Failed Validation"
 
         await db.commit()
 
     except Exception as e:
         print("BACKGROUND ERROR:", e)
-        await db.rollback()
+        try:
+            doc.status = "Error"
+            await db.commit()
+        except:
+            await db.rollback()
 
     finally:
         await db.close()
@@ -98,6 +127,6 @@ async def get_document(doc_id: int, db: AsyncSession = Depends(get_db)):
     doc = await db.get(Document, doc_id)
 
     if not doc:
-        return {"error": "Document not found"}
+        raise HTTPException(status_code=404, detail="Document not found")
 
     return doc

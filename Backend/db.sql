@@ -84,3 +84,30 @@ reason TEXT,
 model_version VARCHAR(20),
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- TRIGGERS AND FUNCTIONS FOR REAL-TIME TRACKING
+CREATE OR REPLACE FUNCTION notify_tracking_update()
+RETURNS trigger AS $$
+DECLARE
+    payload JSON;
+BEGIN
+    IF TG_TABLE_NAME = 'shipment_tracking' AND TG_OP = 'INSERT' THEN
+        payload = row_to_json(NEW);
+        PERFORM pg_notify('tracking_update', payload::text);
+    ELSIF TG_TABLE_NAME = 'shipments' AND TG_OP = 'UPDATE' THEN
+        IF NEW.status IS DISTINCT FROM OLD.status OR NEW.current_location IS DISTINCT FROM OLD.current_location THEN
+            payload = row_to_json(NEW);
+            PERFORM pg_notify('tracking_update', payload::text);
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER shipment_tracking_notify_trigger
+AFTER INSERT ON shipment_tracking
+FOR EACH ROW EXECUTE FUNCTION notify_tracking_update();
+
+CREATE TRIGGER shipments_status_update_notify_trigger
+AFTER UPDATE ON shipments
+FOR EACH ROW EXECUTE FUNCTION notify_tracking_update();
