@@ -46,15 +46,15 @@ const Navbar = () => {
       {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-brand-navy pb-4 px-4 space-y-2 border-t border-slate-700">
-            <a href="#home" className="block hover:text-blue-300 py-2 text-sm">Home</a>
-            <a href="#services" className="block hover:text-blue-300 py-2 text-sm">Services</a>
-            <a href="#solutions" className="block hover:text-blue-300 py-2 text-sm">Solutions</a>
-            <a href="#tracking" className="block hover:text-blue-300 py-2 text-sm">Shipment Tracking</a>
-            <a href="#about" className="block hover:text-blue-300 py-2 text-sm">About</a>
-            <a href="#contact" className="block hover:text-blue-300 py-2 text-sm">Contact</a>
+            <a href="#home" onClick={() => setIsOpen(false)} className="block hover:text-blue-300 py-2 text-sm">Home</a>
+            <a href="#services" onClick={() => setIsOpen(false)} className="block hover:text-blue-300 py-2 text-sm">Services</a>
+            <a href="#solutions" onClick={() => setIsOpen(false)} className="block hover:text-blue-300 py-2 text-sm">Solutions</a>
+            <a href="#tracking" onClick={() => setIsOpen(false)} className="block hover:text-blue-300 py-2 text-sm">Shipment Tracking</a>
+            <a href="#about" onClick={() => setIsOpen(false)} className="block hover:text-blue-300 py-2 text-sm">About</a>
+            <a href="#contact" onClick={() => setIsOpen(false)} className="block hover:text-blue-300 py-2 text-sm">Contact</a>
             <div className="flex flex-col space-y-2 pt-2 border-t border-slate-700">
-              <Link to="/login" className="px-4 py-2 text-sm text-brand-navy bg-white rounded font-semibold text-center">Login</Link>
-              <button className="px-4 py-2 text-sm text-white bg-blue-600 rounded font-semibold">Track Shipment</button>
+              <Link to="/login" onClick={() => setIsOpen(false)} className="px-4 py-2 text-sm text-brand-navy bg-white rounded font-semibold text-center">Login</Link>
+              <button onClick={() => setIsOpen(false)} className="px-4 py-2 text-sm text-white bg-blue-600 rounded font-semibold">Track Shipment</button>
             </div>
         </div>
       )}

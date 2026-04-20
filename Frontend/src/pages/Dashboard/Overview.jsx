@@ -117,7 +117,7 @@ const Overview = () => {
       case 'Invoices & Payments':
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <AccountCard label="Total Invoices" value={data?.summary?.total_invoices || '0'} subtext="Across all clients" color="text-emerald-600" subValue={`${data?.summary?.paid_percent || '0%'} Paid`} />
               <AccountCard label="Total Revenue" value={data?.summary?.total_revenue || '₹0'} subtext="Gross revenue" color="text-blue-600" subValue="Total Billing" />
               <AccountCard label="Paid Amount" value={data?.summary?.paid_amount || '₹0'} subtext="Confirmed payments" color="text-emerald-600" subValue="Success status" />
@@ -129,7 +129,7 @@ const Overview = () => {
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                     <PieIcon size={14} className="text-blue-600" /> Invoice Status Breakdown
                   </h4>
-                  <div className="h-64">
+                  <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -154,14 +154,14 @@ const Overview = () => {
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                     <Calculator size={14} className="text-blue-600" /> Payment Methods
                   </h4>
-                  <div className="h-64">
+                  <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data?.payment_methods || []}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
                         <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
                         <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                        <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                        <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -177,7 +177,7 @@ const Overview = () => {
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-8 flex items-center gap-2">
                   <TrendingUp size={14} className="text-blue-600" /> Revenue Growth Index
                 </h4>
-                <div className="h-80">
+                <div className="h-56 md:h-80">
                    <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={data?.history || []}>
                         <defs>
@@ -204,7 +204,7 @@ const Overview = () => {
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">Top Products by Revenue</h4>
-                   <div className="h-80">
+                   <div className="h-56 md:h-80">
                       <ResponsiveContainer width="100%" height="100%">
                          <BarChart data={data?.product_performance || []} layout="vertical">
                             <XAxis type="number" hide />
@@ -233,7 +233,7 @@ const Overview = () => {
       case 'Expenses Overview':
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <AccountCard label="Total Expenses" value={data?.summary?.total_expenses || '₹0'} subtext="Cumulative spend" color="text-rose-600" subValue="All categories" />
               <AccountCard label="Avg. Expense" value={data?.summary?.avg_expense || '₹0'} subtext="Per transaction" color="text-blue-600" subValue="Standard rate" />
               <AccountCard label="Operational Risk" value={data?.summary?.risk_alerts || '0'} subtext="High risk alerts" color="text-amber-600" subValue="Review required" />
@@ -245,7 +245,7 @@ const Overview = () => {
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                     <PieIcon size={14} className="text-rose-500" /> Expenditure Distribution
                   </h4>
-                  <div className="h-64">
+                  <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -286,14 +286,14 @@ const Overview = () => {
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-8 flex items-center gap-2">
                   <TrendingDown size={14} className="text-rose-500" /> Expense Trend Mapping
                 </h4>
-                <div className="h-80">
+                <div className="h-56 md:h-80">
                    <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data?.history || []}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
                         <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#64748b'}} />
                         <Tooltip />
-                        <Bar dataKey="expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={40} />
+                        <Bar dataKey="expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={20} />
                       </BarChart>
                    </ResponsiveContainer>
                 </div>
@@ -304,14 +304,14 @@ const Overview = () => {
       case 'Financial Summary':
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
-             <div className="bg-blue-600 p-10 rounded-3xl text-white shadow-xl shadow-blue-200 relative overflow-hidden">
+             <div className="bg-blue-600 p-6 md:p-10 rounded-3xl text-white shadow-xl shadow-blue-200 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-10 opacity-10">
                    <DollarSign size={120} />
                 </div>
                 <div className="relative z-10 space-y-2">
                    <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80">Consolidated Net Balance</p>
-                   <h2 className="text-4xl font-black">{data?.summary?.total_revenue || '₹0'}</h2>
-                   <div className="flex items-center gap-4 pt-4">
+                   <h2 className="text-2xl md:text-4xl font-black">{data?.summary?.total_revenue || '₹0'}</h2>
+                   <div className="flex flex-wrap items-center gap-3 pt-4">
                       <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-md">
                          <p className="text-[8px] font-bold uppercase tracking-widest opacity-70">Total Transactions</p>
                          <p className="text-sm font-black">{data?.summary?.shipments_count || '0'}</p>
@@ -327,7 +327,7 @@ const Overview = () => {
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white p-6 rounded-2xl border border-slate-100">
                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">Revenue vs Expense Comparison</h4>
-                   <div className="h-64">
+                   <div className="h-48 md:h-64">
                       <ResponsiveContainer width="100%" height="100%">
                          <BarChart data={data?.history || []}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -357,7 +357,7 @@ const Overview = () => {
       default:
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <AccountCard label="Total Products" value={data?.summary?.shipments_count || '0'} subtext="Active categories" color="text-blue-600" subValue="Tracking enabled" />
               <AccountCard label="Avg. Price Point" value="₹15,000" subtext="Standard pricing" color="text-indigo-600" />
               <AccountCard label="Minimum Unit" value="₹10,000" subtext="Base product line" color="text-emerald-600" />
@@ -367,20 +367,21 @@ const Overview = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">Market Distribution</h4>
-                  <div className="h-64">
+                  <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={[{name: '10k', val: 400}, {name: '20k', val: 700}, {name: '30k', val: 500}, {name: '40k', val: 300}, {name: '50k', val: 900}]}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
                         <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                        <Bar dataKey="val" fill="#6366f1" radius={[4,4,0,0]} barSize={30} />
+                        <Tooltip />
+                        <Bar dataKey="val" fill="#6366f1" radius={[4,4,0,0]} barSize={20} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                </div>
                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">HSN Classification Status</h4>
-                  <div className="h-64">
+                  <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -409,9 +410,9 @@ const Overview = () => {
     <div className="space-y-6 pb-20 animate-fade-in">
       {/* Upper Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
+        <div className="overflow-hidden">
           <h1 className="text-2xl font-bold text-slate-900">Accountant Overview Dashboard</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Track performance, finances, and activity at a glance. Your financial snapshot in one unified view.</p>
+          <p className="text-slate-500 text-xs md:text-sm font-medium mt-1 max-w-full truncate whitespace-normal">Track performance, finances, and activity at a glance. Your financial snapshot in one unified view.</p>
         </div>
         <div className="flex gap-3">
            <button className="bg-blue-600 text-white px-5 py-2 rounded-lg text-xs font-bold shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-colors flex items-center gap-2">
@@ -430,7 +431,7 @@ const Overview = () => {
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-h-[500px]">
         {/* Tab Navigation */}
         <div className="px-6 pt-4 border-b border-slate-50 bg-slate-50/30">
-          <div className="flex gap-8 overflow-x-auto no-scrollbar">
+          <div className="flex gap-4 md:gap-8 overflow-x-auto no-scrollbar scrollbar-none pb-1">
             {tabs.map(tab => (
               <button
                 key={tab}
@@ -447,7 +448,7 @@ const Overview = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="p-8">
+        <div className="p-4 md:p-8">
            {renderTabContent()}
         </div>
       </div>
@@ -531,7 +532,7 @@ const Overview = () => {
       </div>
 
       {/* Bottom Filter Bar */}
-      <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-8 text-white shadow-2xl">
+      <div className="bg-slate-900 p-5 md:p-8 rounded-3xl border border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-8 text-white shadow-2xl">
          <div className="space-y-3">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <Filter size={12}/> Granularity

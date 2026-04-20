@@ -58,8 +58,8 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] relative p-4 py-8">
-      <div className="w-full max-w-[420px] p-8 md:p-10 bg-white rounded-[24px] shadow-sm border border-[#F1DDC8]">
-        <h2 className="text-[28px] font-bold text-center text-slate-900 mb-8 tracking-tight">Create Account</h2>
+      <div className="w-full max-w-[420px] p-6 md:p-10 bg-white rounded-[24px] shadow-sm border border-[#F1DDC8]">
+        <h2 className="text-2xl md:text-[28px] font-bold text-center text-slate-900 mb-8 tracking-tight">Create Account</h2>
         
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl font-medium flex items-center gap-2">

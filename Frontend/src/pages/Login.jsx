@@ -63,7 +63,7 @@ const Login = () => {
       </div>
 
       {/* Login Form Side */}
-      <div className="flex-1 bg-white flex items-center justify-center p-8 md:p-20">
+      <div className="flex-1 bg-white flex items-center justify-center p-6 md:p-20">
         <div className="w-full max-w-sm space-y-8 animate-in fade-in slide-in-from-right-10 duration-700">
           <div className="md:hidden flex flex-col items-center mb-12">
             <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center font-black text-2xl text-white mb-4">S</div>
@@ -71,8 +71,8 @@ const Login = () => {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Login.</h2>
-            <p className="text-slate-500 font-medium">Please enter your corporate credentials to continue.</p>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Login.</h2>
+            <p className="text-slate-500 font-medium text-sm md:text-base">Please enter your corporate credentials to continue.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">

@@ -6,8 +6,8 @@ class ShipmentBase(BaseModel):
     product_name: str
     quantity: int
     unit_price: float
-    origin_country: str
-    destination_country: str
+    origin_country: Optional[str] = None
+    destination_country: Optional[str] = None
     currency: Optional[str] = "INR"
     description: Optional[str] = ""
 

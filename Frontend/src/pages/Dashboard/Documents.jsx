@@ -286,7 +286,7 @@ const Documents = () => {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {/* Toolbar */}
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+          <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-lg">
             {DOC_TYPES.map(t => (
               <button
                 key={t}
@@ -310,8 +310,9 @@ const Documents = () => {
         </div>
 
         {/* Table */}
-        <table className="w-full text-left">
-          <thead>
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left min-w-[800px]">
+            <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
               <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Document</th>
               <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Type</th>
@@ -385,6 +386,7 @@ const Documents = () => {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Footer with Pagination */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">

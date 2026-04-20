@@ -52,10 +52,10 @@ const TrackingBanner = () => {
   };
 
   return (
-    <div id="tracking" className="py-20 px-4 bg-blue-600 text-white relative">
+    <div id="tracking" className="py-12 md:py-20 px-4 bg-blue-600 text-white relative">
       <div className="max-w-4xl mx-auto text-center relative z-10">
         <h2 className="text-3xl font-bold mb-4">Track Your Shipment Instantly</h2>
-        <p className="mb-8 text-blue-100">Enter your tracking number below to get live updates on your cargo.</p>
+        <p className="mb-6 md:mb-8 text-blue-100">Enter your tracking number below to get live updates on your cargo.</p>
         
         <form onSubmit={handleTrack} className="flex flex-col sm:flex-row justify-center max-w-xl mx-auto gap-3">
           <input 
@@ -79,7 +79,7 @@ const TrackingBanner = () => {
 
         {shipment && (
           <div className="mt-8 bg-white text-left p-6 rounded-2xl shadow-2xl max-w-xl mx-auto text-slate-800 border border-slate-100 animate-fade-in">
-             <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+             <div className="flex flex-wrap justify-between items-start gap-3 mb-6 border-b border-slate-100 pb-4">
                 <div className="flex flex-col">
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shipment Identifier</span>
                    <span className="font-black text-xl text-brand-navy">{shipment.shipment_code}</span>

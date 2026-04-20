@@ -1,10 +1,10 @@
 import React from 'react';
 
 const Hero = () => (
-  <div id="home" className="bg-gradient-to-r from-brand-navy to-blue-900 text-white py-20 px-4 mt-0 relative overflow-hidden">
+  <div id="home" className="bg-gradient-to-r from-brand-navy to-blue-900 text-white py-12 md:py-20 px-4 mt-0 relative overflow-hidden">
     <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center relative z-10">
       <div className="md:w-1/2 space-y-6">
-        <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight">
           Powering Global Trade with Smart Import–Export Intelligence
         </h1>
         <p className="text-lg text-slate-300">
@@ -26,7 +26,7 @@ const Hero = () => (
       </div>
       <div className="md:w-1/2 mt-10 md:mt-0 flex justify-center lg:justify-end">
         {/* Placeholder for world map vector or image */}
-        <div className="w-full max-w-sm h-64 bg-slate-800/40 rounded-lg border border-slate-700 flex items-center justify-center border-dashed">
+        <div className="w-full max-w-sm h-48 md:h-64 bg-slate-800/40 rounded-lg border border-slate-700 flex items-center justify-center border-dashed">
           <span className="text-slate-400 font-medium tracking-wide">[ World Map Illustration ]</span>
         </div>
       </div>

@@ -111,8 +111,8 @@ const Shipments = () => {
           <h1 className="text-2xl font-bold text-slate-900 font-display">Shipment Ledger</h1>
           <p className="text-slate-500 text-sm font-medium leading-tight">Comprehensive tracking and financial reconciliation of all logistics activity.</p>
         </div>
-        <div className="flex items-center gap-4 w-full md:w-auto">
-           <div className="relative flex-1 md:w-80">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+           <div className="relative w-full md:w-80">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
@@ -133,7 +133,7 @@ const Shipments = () => {
       </div>
 
       {/* Stats Quickbar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Items This Page</p>
             <p className="text-xl font-black text-slate-900">{shipments.length}</p>
@@ -189,9 +189,9 @@ const Shipments = () => {
                    <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-none" placeholder="Enter shipment details for AI analysis..." />
                 </div>
               </div>
-              <div className="pt-4 flex gap-3">
-                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all">Cancel</button>
-                 <button type="submit" disabled={isSubmitting} className="flex-2 bg-blue-600 text-white py-2.5 px-8 rounded-xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+              <div className="pt-4 flex flex-wrap gap-3">
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all min-w-[120px]">Cancel</button>
+                 <button type="submit" disabled={isSubmitting} className="flex-1 bg-blue-600 text-white py-2.5 px-8 rounded-xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 min-w-[200px]">
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Box size={16} />}
                     {isSubmitting ? 'Processing AI Pipeline...' : 'Create Shipment'}
                  </button>
@@ -199,8 +199,8 @@ const Shipments = () => {
             </form>
         </Modal>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[700px] text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Shipment ID</th>
