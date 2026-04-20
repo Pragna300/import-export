@@ -63,34 +63,59 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
     growth_rate = 1.05 
     forecast_30 = total_revenue_val * growth_rate / 3.0 
     
-    # Category Distribution
+    # Category Distribution (Real data from Duty table)
+    cat_stmt = apply_filters(select(
+        func.sum(Duty.duty_amount),
+        func.sum(Duty.tax_amount),
+        func.sum(Duty.other_charges)
+    ), Duty)
+    cat_res = await db.execute(cat_stmt)
+    cat_row = cat_res.first()
+    
+    duty_sum = float(cat_row[0] or 0)
+    tax_sum = float(cat_row[1] or 0)
+    other_sum = float(cat_row[2] or 0)
+    
     category_dist = [
-        {"name": "Logistics Fees", "value": total_expenses_val * 0.45, "color": "#3b82f6"},
-        {"name": "Office Rent", "value": 25 * (1000 if total_expenses_val > 0 else 0), "color": "#10b981"},
-        {"name": "Raw Materials", "value": total_expenses_val * 0.35, "color": "#f59e0b"},
-        {"name": "Utility & Misc", "value": 12 * (1000 if total_expenses_val > 0 else 0), "color": "#64748b"},
+        {"name": "Customs Duty", "value": duty_sum, "color": "#3b82f6"},
+        {"name": "Tax / VAT", "value": tax_sum, "color": "#10b981"},
+        {"name": "Other Charges", "value": other_sum, "color": "#f59e0b"},
+        {"name": "Operational Misc", "value": total_expenses_val * 0.1, "color": "#64748b"},
     ]
 
-    # Payment Methods Breakdown
+    # Payment Methods Breakdown (Simulated based on status for now)
     payment_methods = [
         {"name": "Bank Transfer", "value": paid_amount * 0.7, "color": "#3b82f6"},
         {"name": "Credit Card", "value": paid_amount * 0.2, "color": "#818cf8"},
         {"name": "Net Banking", "value": paid_amount * 0.1, "color": "#94a3b8"},
     ]
 
-    # Historical Time Series (6 Months)
-    months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
-    history_series = []
-    base_rev = total_revenue_val * 0.5
-    base_exp = total_expenses_val * 0.6
+    # Historical Time Series (Grouped by Month)
+    # Using a cross-service approach for better insight
+    from sqlalchemy import extract
     
-    for i, m in enumerate(months):
+    history_stmt = select(
+        extract('month', Shipment.created_at).label('month'),
+        func.sum(Shipment.total_value).label('revenue'),
+        func.count(Shipment.id).label('count')
+    ).group_by('month').order_by('month')
+    
+    history_res = await db.execute(history_stmt)
+    history_series = []
+    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    
+    for row in history_res.all():
+        m_idx = int(row[0])
         history_series.append({
-            "month": m,
-            "revenue": base_rev + (i * (total_revenue_val * 0.1)),
-            "expenses": base_exp + (i * (total_expenses_val * 0.08)),
-            "transactions": 50 + (i * 10)
+            "month": month_names[m_idx] if 0 < m_idx < 13 else str(m_idx),
+            "revenue": float(row[1] or 0),
+            "expenses": float(row[1] or 0) * 0.15, # Placeholder ratio until we have more duty dates
+            "transactions": int(row[2] or 0)
         })
+
+    # Fallback for UI if empty
+    if not history_series:
+        history_series = [{"month": "No Data", "revenue": 0, "expenses": 0, "transactions": 0}]
 
     # Product Performance (Aggregated from shipments)
     product_perf_stmt = apply_filters(select(
@@ -116,8 +141,8 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
     return {
         "summary": {
             "total_revenue": f"₹{total_revenue_val:,.0f}",
-            "total_expenses": f"₹{(total_expenses_val + (37000 if total_expenses_val > 0 else 0)):,.0f}",
-            "avg_expense": f"₹{((total_expenses_val + (37000 if total_expenses_val > 0 else 0)) / (shipments_count if shipments_count > 0 else 1)):,.0f}",
+            "total_expenses": f"₹{total_expenses_val:,.0f}",
+            "avg_expense": f"₹{(total_expenses_val / (shipments_count if shipments_count > 0 else 1)):,.0f}",
             "paid_amount": f"₹{paid_amount:,.0f}",
             "pending_amount": f"₹{pending_amount:,.0f}",
             "total_invoices": docs_count,
@@ -162,13 +187,17 @@ async def get_risk_analytics(db: AsyncSession):
     duty_sum_res = await db.execute(select(func.sum(Duty.total_cost)))
     total_duty = float(duty_sum_res.scalar() or 0)
 
+    # Real Avg Risk Score
+    avg_score_res = await db.execute(select(func.avg(RiskAssessment.risk_score)))
+    avg_score = float(avg_score_res.scalar() or 0)
+
     return {
         "distribution": risk_dist,
         "top_entries": top_entries,
         "metrics": {
             "total_duty_est": f"₹{total_duty:,.0f}",
             "high_risk_count": risk_dist[0]["count"] if risk_dist else 0,
-            "avg_risk_score": 34.5
+            "avg_risk_score": round(avg_score, 1)
         }
     }
 

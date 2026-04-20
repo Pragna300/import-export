@@ -66,16 +66,38 @@ async def get_or_fetch_hsn(db: AsyncSession, shipment: Shipment):
     return classification, None
 
 
-def calculate_duty_breakdown(shipment: Shipment, hsn_code: str):
+async def calculate_duty_breakdown(db: AsyncSession, shipment: Shipment, hsn_code: str):
+    from models.models import CountryTaxRule, HSNRateRule
+
     assessable_value = Decimal(str(shipment.total_value or 0))
     destination = (shipment.destination_country or "").strip().lower()
-    country_rule = COUNTRY_TAX_RULES.get(
-        destination,
-        {"tax_rate": Decimal("12.00"), "other_charges": Decimal("200.00")},
-    )
-    duty_rate = HSN_DUTY_RULES.get(str(hsn_code)[:2], Decimal("8.00"))
-    tax_rate = country_rule["tax_rate"]
-    other_charges = country_rule["other_charges"]
+    hsn_prefix = str(hsn_code)[:2]
+
+    # Query DB for Country Rules
+    country_rule_res = await db.execute(select(CountryTaxRule).where(CountryTaxRule.country_code == destination))
+    country_rule_db = country_rule_res.scalars().first()
+
+    if country_rule_db:
+        tax_rate = Decimal(str(country_rule_db.tax_rate))
+        other_charges = Decimal(str(country_rule_db.other_charges))
+    else:
+        # Fallback to hardcoded if not in DB
+        country_rule = COUNTRY_TAX_RULES.get(
+            destination,
+            {"tax_rate": Decimal("12.00"), "other_charges": Decimal("200.00")},
+        )
+        tax_rate = country_rule["tax_rate"]
+        other_charges = country_rule["other_charges"]
+
+    # Query DB for HSN Rules
+    hsn_rule_res = await db.execute(select(HSNRateRule).where(HSNRateRule.hsn_prefix == hsn_prefix))
+    hsn_rule_db = hsn_rule_res.scalars().first()
+
+    if hsn_rule_db:
+        duty_rate = Decimal(str(hsn_rule_db.duty_rate))
+    else:
+        # Fallback to hardcoded if not in DB
+        duty_rate = HSN_DUTY_RULES.get(hsn_prefix, Decimal("8.00"))
 
     duty_amount = quantize_amount(assessable_value * duty_rate / Decimal("100"))
     tax_base = assessable_value + duty_amount
@@ -93,7 +115,7 @@ def calculate_duty_breakdown(shipment: Shipment, hsn_code: str):
         "tax_amount": float(tax_amount),
         "other_charges": float(other_charges),
         "total_cost": float(total_cost),
-        "rule_source": f"hsn:{str(hsn_code)[:2]} destination:{destination or 'default'}",
+        "rule_source": f"db-hsn:{hsn_prefix} db-destination:{destination or 'default'}",
     }
 
 

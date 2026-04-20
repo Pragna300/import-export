@@ -10,22 +10,24 @@ from . import service
 from .schemas import ShipmentResponse, TrackingCreate, ShipmentCreate
 from tracking_service.service import manager
 
-GATEWAY_URL = os.getenv("GATEWAY_URL", "http://127.0.0.1:8000")
+HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", "http://127.0.0.1:8003")
+DUTY_SERVICE_URL = os.getenv("DUTY_SERVICE_URL", "http://127.0.0.1:8004")
+RISK_SERVICE_URL = os.getenv("RISK_SERVICE_URL", "http://127.0.0.1:8005")
 
 router = APIRouter(prefix="/shipments", tags=["Shipments"])
 
 async def trigger_ai_pipeline(shipment_id: int, product_name: str):
     async with httpx.AsyncClient() as client:
         # 1. HSN
-        await client.post(f"{GATEWAY_URL}/hsn/", json={
+        await client.post(f"{HSN_SERVICE_URL}/hsn/", json={
             "product_name": product_name, "shipment_id": shipment_id, "persist_result": True
         })
         # 2. Duty
-        await client.post(f"{GATEWAY_URL}/duty/", json={
+        await client.post(f"{DUTY_SERVICE_URL}/duty/", json={
             "shipment_id": shipment_id, "persist_result": True
         })
         # 3. Risk
-        await client.post(f"{GATEWAY_URL}/risk/assess/", json={
+        await client.post(f"{RISK_SERVICE_URL}/risk/assess/", json={
             "shipment_id": shipment_id, "persist_result": True
         })
 

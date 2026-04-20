@@ -29,7 +29,7 @@ async def calculate_duty(
     if error:
         raise HTTPException(status_code=502, detail=error)
 
-    breakdown = calculate_duty_breakdown(shipment, classification.hsn_code)
+    breakdown = await calculate_duty_breakdown(db, shipment, classification.hsn_code)
     if request.persist_result:
         duty = await save_duty_result(db, breakdown)
         breakdown["duty_id"] = duty.id

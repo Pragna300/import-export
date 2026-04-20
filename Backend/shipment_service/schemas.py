@@ -18,6 +18,8 @@ class ShipmentResponse(ShipmentBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     shipment_code: Optional[str] = None
+    status: Optional[str] = None
+    total_value: Optional[float] = None
     current_location: Optional[str] = None
     created_at: Optional[datetime] = None
     ai_insight: Optional[str] = None

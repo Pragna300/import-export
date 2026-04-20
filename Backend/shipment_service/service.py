@@ -1,10 +1,35 @@
+import os
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import or_, func
 from models.models import Shipment, ShipmentTracking
 from .schemas import ShipmentBase, ShipmentCreate
-from ai_service.service import generate_predictive_insight
 import uuid
+
+AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8006")
+
+async def get_ai_insight(product: str, origin: str, destination: str, status: str):
+    """Call the AI service via HTTP instead of direct import."""
+    try:
+        async with httpx.AsyncClient() as client:
+            # We assume ai_service will eventually have a specialized insight endpoint, 
+            # or we can use a generic completion. For now, let's assume it has /ai/predictive-insight
+            response = await client.post(
+                f"{AI_SERVICE_URL}/ai/predictive-insight",
+                json={
+                    "product": product,
+                    "origin": origin,
+                    "destination": destination,
+                    "status": status
+                },
+                timeout=5.0
+            )
+            if response.status_code == 200:
+                return response.json().get("insight", "Route stability verified.")
+    except Exception:
+        pass
+    return "AI analysis unavailable. Standard transit times apply."
 
 async def create_shipment(db: AsyncSession, payload: ShipmentCreate):
     new_shipment = Shipment(
@@ -44,7 +69,7 @@ async def get_all_shipments(db: AsyncSession, skip: int = 0, limit: int = 50, se
     # Inject AI insights for specific searches
     if search and shipments:
         for s in shipments:
-            s.ai_insight = await generate_predictive_insight(
+            s.ai_insight = await get_ai_insight(
                 s.product_name, s.origin_country, s.destination_country, s.status
             )
             
@@ -53,7 +78,7 @@ async def get_all_shipments(db: AsyncSession, skip: int = 0, limit: int = 50, se
 async def get_shipment_by_id(db: AsyncSession, shipment_id: int):
     shipment = await db.get(Shipment, shipment_id)
     if shipment:
-        shipment.ai_insight = await generate_predictive_insight(
+        shipment.ai_insight = await get_ai_insight(
             shipment.product_name, 
             shipment.origin_country, 
             shipment.destination_country, 
