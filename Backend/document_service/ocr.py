@@ -4,6 +4,7 @@ import os
 import httpx
 import pdfplumber
 import pytesseract
+
 from PIL import Image
 
 
@@ -22,6 +23,7 @@ def extract_text_from_file(file_path: str, file_extension: str) -> str:
 
     return text.strip()
 
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 async def process_invoice_with_llm(raw_text: str) -> dict:
     prompt = """

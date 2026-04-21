@@ -35,7 +35,7 @@ async def calculate_risk(
     if duty_error:
         raise HTTPException(status_code=502, detail=duty_error)
 
-    assessment = assess_risk(shipment, classification, duty)
+    assessment = await assess_risk(db, shipment, classification, duty)
     assessment_id = None
     if request.persist_result:
         saved = await save_risk_assessment(db, assessment)

@@ -2,8 +2,8 @@ import React from 'react';
 import { CheckIcon } from './Icons';
 
 const Solutions = () => (
-  <div id="solutions" className="py-20 px-4 bg-white border-y border-slate-100">
-    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-12">
+  <div id="solutions" className="py-12 md:py-20 px-4 bg-white border-y border-slate-100">
+    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-8 md:gap-12">
       <div className="lg:w-1/2">
         <h2 className="text-3xl font-bold text-brand-navy mb-6">Built for Modern Global Trade Operations</h2>
         <p className="text-slate-600 mb-6 leading-relaxed">
@@ -18,7 +18,7 @@ const Solutions = () => (
         </div>
       </div>
       <div className="lg:w-1/2 w-full">
-        <div className="w-full h-80 bg-slate-50 rounded border border-slate-200 shadow-inner flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="w-full h-56 md:h-80 bg-slate-50 rounded border border-slate-200 shadow-inner flex items-center justify-center p-6 relative overflow-hidden">
           {/* Simple Dashboard Dummy Graphic */}
           <div className="absolute top-4 left-4 right-4 h-12 bg-white border border-slate-200 rounded shadow-sm flex items-center px-4">
             <div className="w-8 h-8 rounded-full bg-slate-200 mr-3"></div>

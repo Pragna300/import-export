@@ -6,8 +6,8 @@ class ShipmentBase(BaseModel):
     product_name: str
     quantity: int
     unit_price: float
-    origin_country: str
-    destination_country: str
+    origin_country: Optional[str] = None
+    destination_country: Optional[str] = None
     currency: Optional[str] = "INR"
     description: Optional[str] = ""
 
@@ -18,6 +18,8 @@ class ShipmentResponse(ShipmentBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     shipment_code: Optional[str] = None
+    status: Optional[str] = None
+    total_value: Optional[float] = None
     current_location: Optional[str] = None
     created_at: Optional[datetime] = None
     ai_insight: Optional[str] = None

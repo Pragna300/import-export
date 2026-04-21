@@ -129,3 +129,45 @@ class RiskAssessment(Base):
 
     # Relationship back to Shipment
     shipment = relationship("Shipment", back_populates="risk_assessment")
+
+
+# ---------------- CONFIGURATION / RULES (DYNAMISM) ----------------
+class CountryTaxRule(Base):
+    __tablename__ = "country_tax_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    country_code = Column(String(50), unique=True, index=True) # e.g. "india", "usa"
+    tax_rate = Column(Numeric)
+    other_charges = Column(Numeric)
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+
+class HSNRateRule(Base):
+    __tablename__ = "hsn_rate_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    hsn_prefix = Column(String(10), unique=True, index=True) # e.g. "84", "85"
+    duty_rate = Column(Numeric)
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+
+class RiskRule(Base):
+    __tablename__ = "risk_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entity_type = Column(String(50)) # "country" or "hsn"
+    entity_value = Column(String(100)) # e.g. "afghanistan" or "93"
+    risk_level = Column(String(20)) # "High", "Medium", "Low"
+    score_impact = Column(Numeric)
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+
+class HSNMaster(Base):
+    __tablename__ = "hsn_master"
+
+    id = Column(Integer, primary_key=True, index=True)
+    hsn_code = Column(String(20), unique=True, index=True)
+    description = Column(Text)
+    category = Column(String(100))
+    base_duty_rate = Column(Numeric)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())

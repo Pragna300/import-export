@@ -2,9 +2,9 @@ import React from 'react';
 import { ShipIcon, DocumentIcon, GlobeIcon, ShieldIcon } from './Icons';
 
 const Services = () => (
-  <div id="services" className="py-20 px-4 bg-brand-light">
+  <div id="services" className="py-12 md:py-20 px-4 bg-brand-light">
     <div className="max-w-6xl mx-auto">
-      <div className="text-center mb-12">
+      <div className="text-center mb-8 md:mb-12">
         <h2 className="text-3xl font-bold text-brand-navy">Our Services</h2>
         <p className="text-slate-500 mt-3 max-w-2xl mx-auto">Comprehensive solutions for modern supply chains designed to simplify your logistics workflow.</p>
       </div>

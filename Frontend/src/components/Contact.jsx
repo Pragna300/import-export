@@ -1,7 +1,7 @@
 import React from 'react';
 
 const Contact = () => (
-  <div id="contact" className="py-20 px-4 bg-slate-50 border-t border-slate-200">
+  <div id="contact" className="py-12 md:py-20 px-4 bg-slate-50 border-t border-slate-200">
     <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-12">
       <div className="md:w-1/3">
         <h2 className="text-3xl font-bold text-brand-navy mb-4">Contact Us</h2>

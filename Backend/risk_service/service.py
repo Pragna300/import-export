@@ -76,7 +76,7 @@ async def get_or_fetch_duty(db: AsyncSession, shipment: Shipment):
     return duty, None
 
 
-def assess_risk(shipment: Shipment, classification: HSNClassification, duty: Duty):
+async def assess_risk(db: AsyncSession, shipment: Shipment, classification: HSNClassification, duty: Duty):
     score = 0.0
     reasons = []
 
@@ -87,17 +87,51 @@ def assess_risk(shipment: Shipment, classification: HSNClassification, duty: Dut
     duty_total = float(duty.total_cost or 0)
     duty_ratio = (duty_total / total_value) if total_value else 0
 
-    if destination in HIGH_RISK_COUNTRIES or origin in HIGH_RISK_COUNTRIES:
-        score += 45
-        reasons.append("Shipment involves a high-risk country")
-    elif destination in MEDIUM_RISK_COUNTRIES or origin in MEDIUM_RISK_COUNTRIES:
-        score += 25
-        reasons.append("Shipment involves a medium-risk country")
+    from models.models import RiskRule
+    
+    # Check Country Risk Rules
+    country_rules_stmt = select(RiskRule).where(
+        RiskRule.entity_type == 'country',
+        RiskRule.entity_value.in_([destination, origin])
+    )
+    country_rules_res = await db.execute(country_rules_stmt)
+    country_rules = country_rules_res.scalars().all()
+    
+    for rule in country_rules:
+        score += float(rule.score_impact)
+        reasons.append(f"Shipment involves a {rule.risk_level.lower()}-risk country ({rule.entity_value})")
+        
+    # Check HSN Risk Rules
+    hsn_rules_stmt = select(RiskRule).where(
+        RiskRule.entity_type == 'hsn',
+        RiskRule.entity_value == hsn_prefix
+    )
+    hsn_rules_res = await db.execute(hsn_rules_stmt)
+    hsn_rules = hsn_rules_res.scalars().all()
+    
+    for rule in hsn_rules:
+        score += float(rule.score_impact)
+        reasons.append(f"HSN category ({hsn_prefix}) is flagged as {rule.risk_level.lower()} risk")
 
-    if hsn_prefix in SENSITIVE_HSN_PREFIXES:
-        score += 25
-        reasons.append("HSN category is flagged as sensitive")
+    # Fallback to defaults if rules table is empty (to maintain behavior until seeded)
+    if not country_rules and not hsn_rules:
+        HIGH_RISK_COUNTRIES = {"afghanistan", "iran", "north korea", "syria"}
+        MEDIUM_RISK_COUNTRIES = {"russia", "myanmar", "iraq", "sudan"}
+        SENSITIVE_HSN_PREFIXES = {"93", "36", "28"}
+        
+        if destination in HIGH_RISK_COUNTRIES or origin in HIGH_RISK_COUNTRIES:
+            score += 45
+            reasons.append("Shipment involves a high-risk country")
+        elif destination in MEDIUM_RISK_COUNTRIES or origin in MEDIUM_RISK_COUNTRIES:
+            score += 25
+            reasons.append("Shipment involves a medium-risk country")
 
+        if hsn_prefix in SENSITIVE_HSN_PREFIXES:
+            score += 25
+            reasons.append("HSN category is flagged as sensitive")
+
+    # Hardcoded business logic for confidence, value, and duty ratio
+    # These could also be moved to the database later
     if classification.confidence_score is not None and float(classification.confidence_score) < 5:
         score += 15
         reasons.append("HSN classification confidence is low")
@@ -132,7 +166,7 @@ def assess_risk(shipment: Shipment, classification: HSNClassification, duty: Dut
         "risk_score": round(score, 2),
         "risk_level": level,
         "reason": "; ".join(reasons),
-        "model_version": "rule-engine-v1.0",
+        "model_version": "rule-engine-v2.0",
     }
 
 

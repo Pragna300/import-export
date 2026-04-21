@@ -20,7 +20,7 @@ async def classify_hsn(
     request: HSNPredictRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    prediction = await predict_hsn_code(request.product_name)
+    prediction = await predict_hsn_code(db, request.product_name)
     classification_id = None
 
     if request.persist_result:

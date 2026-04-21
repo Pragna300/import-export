@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const DashboardLayout = () => {
-  const [isSidebarOpen, setSidebarOpen] = React.useState(true);
+  const [isSidebarOpen, setSidebarOpen] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -34,7 +34,7 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
       {/* Sidebar */}
       <aside className={`bg-brand-navy text-white w-64 fixed h-full transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="p-6 flex items-center justify-between border-b border-slate-700/50">
@@ -88,10 +88,17 @@ const DashboardLayout = () => {
         </div>
       </aside>
 
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : ''}`}>
+      <main className={`flex-1 min-w-0 w-full overflow-x-hidden transition-all duration-300 lg:ml-64`}>
         {/* Header */}
-        <header className="bg-white border-b border-slate-200 h-16 sticky top-0 z-40 px-8 flex items-center justify-between">
+        <header className="bg-white border-b border-slate-200 h-16 sticky top-0 z-40 px-4 md:px-8 flex items-center justify-between">
           <button 
             className="p-2 -mr-2 text-slate-500 lg:hidden" 
             onClick={() => setSidebarOpen(true)}
@@ -118,7 +125,7 @@ const DashboardLayout = () => {
         </header>
 
         {/* Dynamic Content */}
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>
