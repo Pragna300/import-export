@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../../config';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -66,7 +67,7 @@ const Overview = () => {
   const fetchData = async () => {
     setIsRefreshing(true);
     try {
-      const response = await fetch(`http://localhost:8000/analytics/summary`);
+      const response = await fetch(`${config.API_BASE_URL}/analytics/summary`);
       const result = await response.json();
       setData(result);
     } catch (err) {
@@ -80,7 +81,7 @@ const Overview = () => {
   const fetchRecentShipments = async () => {
     setIsShipmentsLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/shipments/?limit=5`);
+      const response = await fetch(`${config.API_BASE_URL}/shipments/?limit=5`);
       const data = await response.json();
       setRecentShipments(data);
     } catch (err) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, X, Bot, User, Loader2 } from 'lucide-react';
+import config from '../config';
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +31,7 @@ const Chatbot = () => {
       // Use the existing history + current user message to avoid stale state issues
       const backendHistory = [...history];
 
-      const response = await fetch('http://localhost:8000/ai/chatbot', {
+      const response = await fetch(`${config.API_BASE_URL}/ai/chatbot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

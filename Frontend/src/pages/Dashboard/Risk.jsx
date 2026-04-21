@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../../config';
 import {
   ShieldAlert,
   AlertTriangle,
@@ -89,7 +90,7 @@ const Risk = () => {
   useEffect(() => {
     const fetch_ = async () => {
       try {
-        const r = await fetch('http://localhost:8000/analytics/risk');
+        const r = await fetch(`${config.API_BASE_URL}/analytics/risk`);
         const d = await r.json();
         setRiskData(d);
       } catch (e) {

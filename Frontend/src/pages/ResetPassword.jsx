@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle, ArrowRight } from 'lucide-react';
+import config from '../config';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -22,7 +23,7 @@ const ResetPassword = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/auth/reset-password', {
+      const response = await fetch(`${config.API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, new_password: password }),

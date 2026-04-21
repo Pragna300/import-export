@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../../config';
 import {
   Search,
   Target,
@@ -45,7 +46,7 @@ const HSN = () => {
   useEffect(() => {
     const fetchHSN = async () => {
       try {
-        const response = await fetch('http://localhost:8000/analytics/hsn');
+        const response = await fetch(`${config.API_BASE_URL}/analytics/hsn`);
         const d = await response.json();
         setData(d);
       } catch (err) {
@@ -61,7 +62,7 @@ const HSN = () => {
     if (!description.trim()) return;
     setIsPredicting(true);
     try {
-      const response = await fetch('http://localhost:8000/hsn/', {
+      const response = await fetch(`${config.API_BASE_URL}/hsn/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product_name: description, persist_result: false })

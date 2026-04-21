@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import config from '../../config';
 import { 
   Search, 
   MapPin, 
@@ -27,7 +28,7 @@ const Tracking = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:8000/tracking/${code}`);
+      const res = await fetch(`${config.API_BASE_URL}/tracking/${code}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setTrackingData(data);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Zap } from 'lucide-react';
+import config from '../config';
 
 const TrackingBanner = () => {
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -11,7 +12,7 @@ const TrackingBanner = () => {
   useEffect(() => {
     if (!shipment) return;
 
-    const ws = new WebSocket('ws://localhost:8000/ws/tracking');
+    const ws = new WebSocket(`${config.WS_BASE_URL}/ws/tracking`);
     
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
@@ -34,7 +35,7 @@ const TrackingBanner = () => {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8000/shipments/?code=${trackingNumber}`);
+      const response = await fetch(`${config.API_BASE_URL}/shipments/?code=${trackingNumber}`);
       const data = await response.json();
       
       if (data && data.length > 0) {

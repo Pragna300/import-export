@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../../config';
 import { 
   Truck, 
   MapPin, 
@@ -61,7 +62,7 @@ const Shipments = () => {
           limit: limit.toString(),
           ...(search && { search })
       });
-      const response = await fetch(`http://localhost:8000/shipments/?${queryParams}`);
+      const response = await fetch(`${config.API_BASE_URL}/shipments/?${queryParams}`);
       const data = await response.json();
       setShipments(data);
     } catch (err) {
@@ -84,7 +85,7 @@ const Shipments = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:8000/shipments/', {
+      const response = await fetch(`${config.API_BASE_URL}/shipments/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

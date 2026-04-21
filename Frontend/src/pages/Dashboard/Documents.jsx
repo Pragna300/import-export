@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import config_env from '../../config';
 import {
   FileUp,
   Search,
@@ -30,7 +31,7 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
     if (isOpen && docId) {
       const poll = async () => {
         try {
-          const res = await fetch(`http://localhost:8000/documents/${docId}`);
+          const res = await fetch(`${config_env.API_BASE_URL}/documents/${docId}`);
           const data = await res.json();
           setDocDetail(data);
           if (data.status === 'Completed' || data.status === 'Failed' || data.status === 'Error') {
@@ -162,7 +163,7 @@ const Documents = () => {
     setIsLoading(true);
     try {
       const skip = page * perPage;
-      const response = await fetch(`http://localhost:8000/documents/?skip=${skip}&limit=${perPage}`);
+      const response = await fetch(`${config_env.API_BASE_URL}/documents/?skip=${skip}&limit=${perPage}`);
       const data = await response.json();
       setDocs(data);
     } catch (err) {
@@ -181,7 +182,7 @@ const Documents = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch('http://localhost:8000/documents/upload', { method: 'POST', body: formData });
+      const response = await fetch(`${config_env.API_BASE_URL}/documents/upload`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(await response.text());
       const resData = await response.json();
       
