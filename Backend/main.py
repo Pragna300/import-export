@@ -26,8 +26,14 @@ from tracking_service.routes import router as tracking_router
 
 app = FastAPI(title="AI Import-Export Unified Gateway")
 
-# CORS
-cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+# CORS Configuration
+# When allow_credentials=True, allow_origins cannot be ["*"]
+raw_origins = os.getenv("CORS_ORIGINS", "https://importexport-phi.vercel.app,http://localhost:5173").split(",")
+cors_origins = [origin.strip() for origin in raw_origins if origin.strip() and origin.strip() != "*"]
+
+# If origins only contained "*" or was empty, use defaults
+if not cors_origins:
+    cors_origins = ["https://importexport-phi.vercel.app", "http://localhost:5173"]
 
 app.add_middleware(
     CORSMiddleware,
