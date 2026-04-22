@@ -8,7 +8,7 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise Exception("DATABASE_URL not set in .env")
+    print("⚠️ WARNING: DATABASE_URL not set")
 
 # Standardize URL for asyncpg (Render/Supabase often provide postgres://)
 if DATABASE_URL.startswith("postgres://"):
