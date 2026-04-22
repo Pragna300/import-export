@@ -59,22 +59,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
 @app.on_event("startup")
 async def startup():
-    try:
-        print("🚀 Starting application...")
-
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        print("✅ Database connected")
-
-    except Exception as e:
-        print("❌ Database startup failed:", e)
-
-    try:
-        #asyncio.create_task(listen_to_pg_tracking())
-        print("✅ Tracking service started")
-    except Exception as e:
-        print("❌ Tracking service failed:", e)
+    print("🚀 App started successfully")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
