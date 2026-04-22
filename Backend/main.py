@@ -8,9 +8,10 @@ import asyncio
 from sqlalchemy import text
 
 from database import engine, Base, get_db
+from tracking_service.service import listen_to_pg_tracking
 
-# ✅ IMPORTANT: Import models so tables get registered
-from auth import models  # ADD THIS LINE
+# ✅ IMPORTANT: Import all models into Base.metadata so tables get registered
+import models.models # This ensures Shipment, Document, Tracking etc. are seen by Base
 
 # Routers
 from auth.routes import router as auth_router
@@ -70,8 +71,12 @@ async def startup():
 
         print("✅ Tables created successfully")
 
+        # Start the live tracking background task
+        asyncio.create_task(listen_to_pg_tracking())
+        print("✅ Live tracking listener initialized")
+
     except Exception as e:
-        print("❌ DB error:", e)
+        print("❌ Startup error:", e)
 
 # ✅ FIXED EXCEPTION HANDLER
 @app.exception_handler(Exception)

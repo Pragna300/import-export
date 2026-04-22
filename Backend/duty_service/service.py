@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.models import Duty, HSNClassification, Shipment
 
-HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", "http://127.0.0.1:8003")
+HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", "http://127.0.0.1:8000")
 
 COUNTRY_TAX_RULES = {
     "india": {"tax_rate": Decimal("18.00"), "other_charges": Decimal("250.00")},
