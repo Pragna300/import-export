@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 import traceback
 import asyncio
+from sqlalchemy import text
 
-from database import engine, Base
+from database import engine, Base, get_db
 from tracking_service.service import listen_to_pg_tracking
 
 # Import new modular routers
@@ -19,9 +22,13 @@ from tracking_service.routes import router as tracking_router # I'll create this
 
 app = FastAPI(title="AI Import-Export Unified Gateway")
 
+# CORS Configuration
+# In production, set CORS_ORIGINS to your Vercel URL (e.g., https://your-app.vercel.app)
+cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +48,14 @@ app.include_router(tracking_router)
 @app.get("/")
 async def root():
     return {"message": "Unified Gateway is active. All services integrated."}
+
+@app.get("/health")
+async def health_check(db: AsyncSession = Depends(get_db)):
+    try:
+        await db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "database": str(e)}
 
 @app.on_event("startup")
 async def startup():

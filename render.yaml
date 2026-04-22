@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: shnoor-backend
+    env: python
+    rootDir: Backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false # You will paste your Supabase URI here in the Render Dashboard
+      - key: OPEN_ROUTER_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REFRESH_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: GATEWAY_URL
+        value: http://localhost:8000
+      - key: PYTHON_VERSION
+        value: 3.10.0

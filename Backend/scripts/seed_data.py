@@ -1,111 +1,140 @@
 import asyncio
+import os
+import sys
+
+# Add the parent directory to sys.path to import from database and models
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from database import engine, async_session, Base
+from models.models import User, Shipment, ShipmentTracking, HSNClassification, RiskAssessment, Duty
+from auth.utils import get_password_hash
 from decimal import Decimal
-from sqlalchemy.ext.asyncio import AsyncSession
-from database import async_session, engine, Base
-from models.models import CountryTaxRule, HSNRateRule, RiskRule, HSNMaster, User
-from passlib.context import CryptContext
+from datetime import datetime, timedelta
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-async def seed():
+async def seed_data():
+    print("🚀 Starting Database Seeding...")
+    
     async with engine.begin() as conn:
-        # Ensure tables exist
+        # Create all tables if they don't exist
         await conn.run_sync(Base.metadata.create_all)
-
+    
     async with async_session() as db:
-        # 1. Seed Users
-        # NOTE: Passwords here are for development seeding only.
-        # In a production environment, users should be invited or register themselves.
-        users_to_seed = [
+        # 1. Create a Test User
+        print("👤 Creating Test User...")
+        test_user = User(
+            name="Logistics Manager",
+            email="manager@shnoor.com",
+            password_hash=get_password_hash("password123"),
+            role="admin"
+        )
+        db.add(test_user)
+        await db.flush() # Get the ID
+
+        # 2. Create Sample Shipments
+        print("📦 Creating Sample Shipments...")
+        shipments_data = [
             {
-                "name": "System Admin",
-                "email": "admin@shnoor.ai",
-                "password": "admin123",
-                "role": "admin"
+                "code": "SHP-772A1B01",
+                "product": "Breville Refrigerators",
+                "origin": "Indonesia",
+                "dest": "India",
+                "val": 1724.0,
+                "qty": 2,
+                "status": "In Transit"
             },
             {
-                "name": "Praneeth",
-                "email": "praneeth@shnoor.ai",
-                "password": "password123",
-                "role": "analyst"
+                "code": "SHP-883F2C02",
+                "product": "Industrial Solar Panels",
+                "origin": "China",
+                "dest": "Germany",
+                "val": 15500.0,
+                "qty": 50,
+                "status": "Processing"
+            },
+            {
+                "code": "SHP-991D3E03",
+                "product": "Premium Coffee Beans",
+                "origin": "Brazil",
+                "dest": "USA",
+                "val": 4500.0,
+                "qty": 1000,
+                "status": "Delivered"
             }
         ]
 
-        from sqlalchemy import select
-        for user_data in users_to_seed:
-            user_stmt = select(User).where(User.email == user_data["email"])
-            user_res = await db.execute(user_stmt)
-            if not user_res.scalars().first():
-                new_user = User(
-                    name=user_data["name"],
-                    email=user_data["email"],
-                    password_hash=pwd_context.hash(user_data["password"]),
-                    role=user_data["role"]
-                )
-                db.add(new_user)
-                print(f"Added user: {user_data['email']} ({user_data['role']})")
+        shipments = []
+        for s in shipments_data:
+            new_shipment = Shipment(
+                shipment_code=s["code"],
+                product_name=s["product"],
+                quantity=s["qty"],
+                unit_price=Decimal(s["val"] / s["qty"]),
+                total_value=Decimal(s["val"]),
+                currency="USD",
+                origin_country=s["origin"],
+                destination_country=s["dest"],
+                status=s["status"],
+                created_by=test_user.id
+            )
+            db.add(new_shipment)
+            shipments.append(new_shipment)
+        
+        await db.flush()
 
-        # 2. Seed Country Tax Rules
-        countries = [
-            ("india", 18.0, 250.0),
-            ("usa", 7.5, 175.0),
-            ("germany", 19.0, 220.0),
-            ("uae", 5.0, 150.0),
-            ("china", 13.0, 300.0)
-        ]
-        for code, rate, other in countries:
-            stmt = select(CountryTaxRule).where(CountryTaxRule.country_code == code)
-            res = await db.execute(stmt)
-            if not res.scalars().first():
-                db.add(CountryTaxRule(country_code=code, tax_rate=Decimal(str(rate)), other_charges=Decimal(str(other))))
-        print("Seeded Country Tax Rules.")
+        # 3. Add Tracking History for the first shipment
+        print("📍 Adding Tracking History...")
+        h1 = ShipmentTracking(
+            shipment_id=shipments[0].id,
+            status="Order Placed",
+            location="Jakarta Port",
+            remarks="Cargo booked and awaiting clearance.",
+            timestamp=datetime.utcnow() - timedelta(days=2)
+        )
+        h2 = ShipmentTracking(
+            shipment_id=shipments[0].id,
+            status="In Transit",
+            location="Indian Ocean",
+            remarks="Vessel sailing towards Mumbai.",
+            timestamp=datetime.utcnow() - timedelta(days=1)
+        )
+        db.add_all([h1, h2])
 
-        # 3. Seed HSN Rate Rules
-        hsn_rates = [
-            ("84", 15.0), # Nuclear reactors, boilers, machinery
-            ("85", 18.0), # Electrical machinery
-            ("73", 12.5), # Articles of iron or steel
-            ("30", 5.0),  # Pharmaceutical products
-            ("90", 20.0)  # Optical, medical instruments
-        ]
-        for prefix, rate in hsn_rates:
-            stmt = select(HSNRateRule).where(HSNRateRule.hsn_prefix == prefix)
-            res = await db.execute(stmt)
-            if not res.scalars().first():
-                db.add(HSNRateRule(hsn_prefix=prefix, duty_rate=Decimal(str(rate))))
-        print("Seeded HSN Rate Rules.")
+        # 4. Add HSN Classification
+        print("🔍 Adding HSN Classifications...")
+        hsn = HSNClassification(
+            shipment_id=shipments[0].id,
+            product_name="Breville Refrigerators",
+            hsn_code="8418.10.10",
+            confidence_score=0.98,
+            model_version="LLM-Distil-V2"
+        )
+        db.add(hsn)
 
-        # 4. Seed Risk Rules
-        risk_rules = [
-            ("country", "afghanistan", "High", 45.0),
-            ("country", "iran", "High", 45.0),
-            ("country", "russia", "Medium", 25.0),
-            ("hsn", "93", "High", 25.0), # Weapons
-            ("hsn", "36", "High", 25.0), # Explosives
-        ]
-        for rtype, rval, rlvl, impact in risk_rules:
-            stmt = select(RiskRule).where(RiskRule.entity_type == rtype, RiskRule.entity_value == rval)
-            res = await db.execute(stmt)
-            if not res.scalars().first():
-                db.add(RiskRule(entity_type=rtype, entity_value=rval, risk_level=rlvl, score_impact=Decimal(str(impact))))
-        print("Seeded Risk Rules.")
+        # 5. Add Risk Assessment
+        print("⚠️ Adding Risk Assessments...")
+        risk = RiskAssessment(
+            shipment_id=shipments[0].id,
+            risk_score=15.5,
+            risk_level="Low",
+            reason="Stable route and trusted supplier.",
+            model_version="Risk-ML-G4"
+        )
+        db.add(risk)
 
-        # 5. Seed HSN Master
-        hsn_master = [
-            ("841459", "Electric Fans", "Electronics", 15.0),
-            ("851713", "Smartphones", "Telecommunications", 18.0),
-            ("300490", "Medicines", "Healthcare", 5.0),
-            ("732690", "Steel Brackets", "Hardware", 12.5)
-        ]
-        for code, desc, cat, rate in hsn_master:
-            stmt = select(HSNMaster).where(HSNMaster.hsn_code == code)
-            res = await db.execute(stmt)
-            if not res.scalars().first():
-                db.add(HSNMaster(hsn_code=code, description=desc, category=cat, base_duty_rate=Decimal(str(rate))))
-        print("Seeded HSN Master.")
+        # 6. Add Duty
+        print("💰 Adding Duty Records...")
+        duty = Duty(
+            shipment_id=shipments[0].id,
+            hsn_code="8418.10.10",
+            duty_amount=Decimal(172.4), # 10%
+            tax_amount=Decimal(310.3),  # 18%
+            total_cost=Decimal(2206.7),
+            currency="USD"
+        )
+        db.add(duty)
 
         await db.commit()
-        print("Database seeding completed successfully.")
+        print("✅ Seeding Completed Successfully!")
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    asyncio.run(seed_data())

@@ -23,7 +23,12 @@ def extract_text_from_file(file_path: str, file_extension: str) -> str:
 
     return text.strip()
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Configure Tesseract path only if on Windows and default fails
+if os.name == 'nt':
+    # Try common Windows path
+    win_tess = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    if os.path.exists(win_tess):
+        pytesseract.pytesseract.tesseract_cmd = win_tess
 
 async def process_invoice_with_llm(raw_text: str) -> dict:
     prompt = """

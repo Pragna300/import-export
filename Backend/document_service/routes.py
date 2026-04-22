@@ -1,4 +1,5 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -15,14 +16,21 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 async def upload_invoice(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    shipment_id: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     file_path, file_ext = save_upload_file(file)
 
-    new_doc = Document(file_url=file.filename, status="Processing", doc_type="invoice")
+    new_doc = Document(
+        file_url=file.filename, 
+        status="Processing", 
+        doc_type="invoice",
+        shipment_id=shipment_id
+    )
     db.add(new_doc)
     await db.commit()
     await db.refresh(new_doc)
+
 
     background_tasks.add_task(
         background_process_invoice,

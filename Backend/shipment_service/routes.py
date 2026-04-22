@@ -10,9 +10,9 @@ from . import service
 from .schemas import ShipmentResponse, TrackingCreate, ShipmentCreate
 from tracking_service.service import manager
 
-HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", "http://127.0.0.1:8003")
-DUTY_SERVICE_URL = os.getenv("DUTY_SERVICE_URL", "http://127.0.0.1:8004")
-RISK_SERVICE_URL = os.getenv("RISK_SERVICE_URL", "http://127.0.0.1:8005")
+HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", "http://127.0.0.1:8000")
+DUTY_SERVICE_URL = os.getenv("DUTY_SERVICE_URL", "http://127.0.0.1:8000")
+RISK_SERVICE_URL = os.getenv("RISK_SERVICE_URL", "http://127.0.0.1:8000")
 
 router = APIRouter(prefix="/shipments", tags=["Shipments"])
 
@@ -63,12 +63,3 @@ async def add_tracking(shipment_id: int, tracking: TrackingCreate, db: AsyncSess
         db, shipment_id, tracking.status, tracking.location, tracking.remarks
     )
 
-# WebSocket support for live tracking
-@router.websocket("/ws/tracking")
-async def tracking_websocket(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)

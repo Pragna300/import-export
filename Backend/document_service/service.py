@@ -12,9 +12,9 @@ from models.models import Document, Shipment
 from .ocr import extract_text_from_file, process_invoice_with_llm
 from .schemas import ExtractedInvoiceData
 
-UPLOAD_DIR = Path("document_uploads")
 # Pointing to the unified gateway port for inter-service communication
-GATEWAY_URL = os.getenv("GATEWAY_URL", "http://127.0.0.1:8000")
+# In local dev it's localhost:8000. In production it's the Render service URL.
+GATEWAY_URL = os.getenv("GATEWAY_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
 def save_upload_file(upload_file) -> tuple[str, str]:

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import config from '../../config';
 import { 
   Search, 
@@ -21,7 +21,7 @@ const Tracking = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleTrack = async (e) => {
+  const handleTrack = useCallback(async (e) => {
     if (e) e.preventDefault();
     if (!code) return;
     
@@ -38,7 +38,41 @@ const Tracking = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [code]);
+
+  useEffect(() => {
+    let socket;
+    if (trackingData && trackingData.shipment) {
+      // Connect to the WebSocket tracking endpoint
+      socket = new WebSocket(`${config.WS_BASE_URL}/tracking/ws`);
+      
+      socket.onopen = () => {
+        console.log("WebSocket connected for live tracking...");
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          // If the server broadcasts a message, it might be an update for this shipment
+          const update = JSON.parse(event.data);
+          if (update.shipment_id === trackingData.shipment.id || 
+              update.shipment_code === trackingData.shipment.shipment_code) {
+            // Trigger a refresh to get latest history and AI insight
+            handleTrack();
+          }
+        } catch (e) {
+          // It might be a simple text message
+          console.log("WS Message:", event.data);
+        }
+      };
+
+      socket.onerror = (err) => console.error("WS Error:", err);
+      socket.onclose = () => console.log("WebSocket disconnected.");
+    }
+    
+    return () => {
+      if (socket) socket.close();
+    };
+  }, [trackingData?.shipment?.id, handleTrack]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">

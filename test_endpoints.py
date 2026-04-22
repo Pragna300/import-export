@@ -14,7 +14,18 @@ async def test_all_endpoints():
             # 1. Test Root
             res = await client.get("/")
             print(f"✅ Root Endpoint [/]: {res.status_code}")
-            print(f"Response: {res.json()}\n")
+            print(f"   Response: {res.json()}\n")
+            
+            # 1.1 Test Health
+            res = await client.get("/health")
+            print(f"✅ Health Check [/health]: {res.status_code}")
+            if res.status_code == 200:
+                health = res.json()
+                status_emoji = "🟢" if health.get("status") == "healthy" else "🔴"
+                print(f"   Status: {status_emoji} {health.get('status')}")
+                print(f"   Database: {health.get('database')}\n")
+            else:
+                print(f"❌ Health Check failed: {res.text}\n")
             
             # 2. Test Shipments GET
             res = await client.get("/shipments/")
