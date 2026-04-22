@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 import traceback
@@ -7,9 +8,11 @@ import asyncio
 from sqlalchemy import text
 
 from database import engine, Base, get_db
-from tracking_service.service import listen_to_pg_tracking
 
-# Import new modular routers
+# ✅ IMPORTANT: Import models so tables get registered
+from auth import models  # ADD THIS LINE
+
+# Routers
 from auth.routes import router as auth_router
 from document_service.routes import router as document_router
 from shipment_service.routes import router as shipment_router
@@ -18,12 +21,11 @@ from ai_service.routes import router as ai_router
 from hsn_service.routes import router as hsn_router
 from risk_service.routes import router as risk_router
 from duty_service.routes import router as duty_router
-from tracking_service.routes import router as tracking_router # I'll create this next to house WS
+from tracking_service.routes import router as tracking_router
 
 app = FastAPI(title="AI Import-Export Unified Gateway")
 
-# CORS Configuration
-# In production, set CORS_ORIGINS to your Vercel URL (e.g., https://your-app.vercel.app)
+# CORS
 cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 
 app.add_middleware(
@@ -34,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register All Service Routers
+# Routers
 app.include_router(auth_router)
 app.include_router(document_router)
 app.include_router(shipment_router)
@@ -57,12 +59,26 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         return {"status": "unhealthy", "database": str(e)}
 
+# ✅ FIXED STARTUP
 @app.on_event("startup")
 async def startup():
-    print("🚀 App started successfully")
+    try:
+        print("🚀 Starting app...")
 
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        print("✅ Tables created successfully")
+
+    except Exception as e:
+        print("❌ DB error:", e)
+
+# ✅ FIXED EXCEPTION HANDLER
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     print("=== GATEWAY ERROR ===")
     print(traceback.format_exc())
-    return {"detail": "Internal Server Error"}
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"},
+    )
