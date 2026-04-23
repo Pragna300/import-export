@@ -8,20 +8,29 @@ import pytesseract
 from PIL import Image
 
 
-def extract_text_from_file(file_path: str, file_extension: str) -> str:
-    text = ""
+from starlette.concurrency import run_in_threadpool
 
-    if file_extension == ".pdf":
-        with pdfplumber.open(file_path) as pdf:
-            # 🚀 SPEED OPTIMIZATION: Process only the first 3 pages for invoices
-            pages_to_process = pdf.pages[:3]
-            for page in pages_to_process:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-    elif file_extension in [".jpg", ".jpeg", ".png"]:
-        image = Image.open(file_path).convert("L")
-        text = pytesseract.image_to_string(image)
+async def extract_text_from_file(file_path: str, file_extension: str) -> str:
+    """Async wrapper for text extraction to prevent blocking the event loop."""
+    return await run_in_threadpool(_sync_extract_text_from_file, file_path, file_extension)
+
+def _sync_extract_text_from_file(file_path: str, file_extension: str) -> str:
+    text = ""
+    try:
+        if file_extension == ".pdf":
+            with pdfplumber.open(file_path) as pdf:
+                # 🚀 SPEED OPTIMIZATION: Process only the first 3 pages for invoices
+                pages_to_process = pdf.pages[:3]
+                for page in pages_to_process:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+        elif file_extension in [".jpg", ".jpeg", ".png"]:
+            image = Image.open(file_path).convert("L")
+            text = pytesseract.image_to_string(image)
+    except Exception as e:
+        print(f"❌ OCR Error: {e}")
+        return ""
 
     return text.strip()
 
@@ -38,6 +47,7 @@ async def process_invoice_with_llm(raw_text: str) -> dict:
 
     Format:
     {
+      "shipment_code": "Extracted shipment ID or reference if found, else null",
       "product_name": "",
       "quantity": 0,
       "price": 0,

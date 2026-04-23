@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ExtractedInvoiceData(BaseModel):
+    shipment_code: Optional[str] = None
     product_name: str
     quantity: int
     price: float

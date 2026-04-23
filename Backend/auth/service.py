@@ -17,7 +17,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
         return None
     if not user.is_active:
         return None
-    if not utils.verify_password(password, user.password_hash):
+    if not await utils.verify_password(password, user.password_hash):
         return None
     
     return user
@@ -38,7 +38,7 @@ async def create_user(db: AsyncSession, user_data: schemas.UserCreate):
             )
 
         # Hash the password
-        hashed_password = utils.get_password_hash(user_data.password)
+        hashed_password = await utils.get_password_hash(user_data.password)
         
         # Create user model instance
         db_user = User(
@@ -64,7 +64,7 @@ async def create_user(db: AsyncSession, user_data: schemas.UserCreate):
 
 async def update_user_password(db: AsyncSession, user: User, new_password: str):
     """Update user password asynchronously"""
-    user.password_hash = utils.get_password_hash(new_password)
+    user.password_hash = await utils.get_password_hash(new_password)
     db.add(user)
     await db.commit()
     await db.refresh(user)

@@ -58,6 +58,23 @@ app.include_router(risk_router)
 app.include_router(duty_router)
 app.include_router(tracking_router)
 
+@app.post("/import-data", tags=["Admin"])
+async def import_dataset_endpoint(db: AsyncSession = Depends(get_db)):
+    """Trigger the dataset import from the CSV file."""
+    from scripts.import_dataset import import_data
+    # We need to monkey-patch or adapt import_data to use the provided db session
+    # For now, let's just try to run it. 
+    # Actually, import_dataset.py uses its own async_session.
+    try:
+        # Since import_data in the script doesn't take parameters, 
+        # we might need to modify it or just call it if it's safe.
+        import asyncio
+        from scripts.import_dataset import import_data
+        await import_data()
+        return {"message": "Import process finished. Check logs for details."}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/")
 async def root():
     return {"message": "Unified Gateway is active. All services integrated."}

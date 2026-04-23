@@ -142,6 +142,9 @@ const StatusBadge = ({ status }) => {
     Completed: { icon: <CheckCircle2 size={10} />, cls: 'bg-emerald-100 text-emerald-700' },
     Processing: { icon: <Clock size={10} className="animate-spin" />, cls: 'bg-amber-100 text-amber-700 animate-pulse' },
     Pending:    { icon: <AlertCircle size={10} />, cls: 'bg-slate-100 text-slate-600' },
+    Failed:     { icon: <X size={10} />, cls: 'bg-rose-100 text-rose-700' },
+    Error:      { icon: <AlertCircle size={10} />, cls: 'bg-rose-100 text-rose-700' },
+    'Failed Validation': { icon: <X size={10} />, cls: 'bg-rose-100 text-rose-700' },
   };
   const s = config[status] || config.Pending;
   return (
@@ -185,6 +188,18 @@ const Documents = () => {
   };
 
   useEffect(() => { fetchDocs(); }, [page]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    try {
+      const response = await fetch(`${config_env.API_BASE_URL}/documents/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        setDocs(docs.filter(d => d.id !== id));
+      }
+    } catch (err) {
+      console.error('Failed to delete document:', err);
+    }
+  };
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -389,9 +404,20 @@ const Documents = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-1.5 text-slate-300 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-all">
-                      <MoreVertical size={16} />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      {(doc.status === 'Failed' || doc.status === 'Error' || doc.status === 'Failed Validation') && (
+                        <button 
+                          onClick={() => handleDelete(doc.id)}
+                          className="p-1.5 text-rose-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-all tooltip"
+                          title="Delete Failed Document"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                      <button className="p-1.5 text-slate-300 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-all">
+                        <MoreVertical size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

@@ -171,7 +171,7 @@ async def assess_risk(db: AsyncSession, shipment: Shipment, classification: HSNC
     }
 
 
-async def save_risk_assessment(db: AsyncSession, assessment: dict):
+async def save_risk_assessment(db: AsyncSession, assessment: dict, commit: bool = True):
     result = await db.execute(
         select(RiskAssessment).where(RiskAssessment.shipment_id == assessment["shipment_id"])
     )
@@ -185,6 +185,7 @@ async def save_risk_assessment(db: AsyncSession, assessment: dict):
         existing.reason = assessment["reason"]
         existing.model_version = assessment["model_version"]
 
-    await db.commit()
-    await db.refresh(existing)
+    if commit:
+        await db.commit()
+        await db.refresh(existing)
     return existing

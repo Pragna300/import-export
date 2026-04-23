@@ -67,3 +67,15 @@ async def get_document(doc_id: int, db: AsyncSession = Depends(get_db)):
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     return document
+
+
+@router.delete("/{doc_id}")
+async def delete_document(doc_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a document record asynchronously"""
+    document = await db.get(Document, doc_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    await db.delete(document)
+    await db.commit()
+    return {"message": "Document deleted successfully"}

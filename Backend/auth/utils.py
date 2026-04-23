@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 import bcrypt
+from starlette.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 import os
 
@@ -12,16 +13,21 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+async def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash using direct bcrypt."""
     try:
         if isinstance(hashed_password, str):
             hashed_password = hashed_password.encode('utf-8')
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password)
+        
+        return await run_in_threadpool(
+            bcrypt.checkpw, 
+            plain_password.encode('utf-8'), 
+            hashed_password
+        )
     except Exception:
         return False
 
-def get_password_hash(password: str) -> str:
+async def get_password_hash(password: str) -> str:
     """Hash a password using direct bcrypt with the 72-byte limit handled."""
     # Bcrypt has a hard 72-byte limit. 
     pw_bytes = password.encode('utf-8')
@@ -30,8 +36,8 @@ def get_password_hash(password: str) -> str:
         pw_bytes = pw_bytes[:71]
     
     # Generate salt and hash
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(pw_bytes, salt)
+    salt = await run_in_threadpool(bcrypt.gensalt)
+    hashed = await run_in_threadpool(bcrypt.hashpw, pw_bytes, salt)
     return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: timedelta | int | None = None):

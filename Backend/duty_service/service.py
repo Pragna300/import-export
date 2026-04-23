@@ -120,7 +120,7 @@ async def calculate_duty_breakdown(db: AsyncSession, shipment: Shipment, hsn_cod
     }
 
 
-async def save_duty_result(db: AsyncSession, breakdown: dict):
+async def save_duty_result(db: AsyncSession, breakdown: dict, commit: bool = True):
     result = await db.execute(select(Duty).where(Duty.shipment_id == breakdown["shipment_id"]))
     duty = result.scalars().first()
     if duty is None:
@@ -142,6 +142,7 @@ async def save_duty_result(db: AsyncSession, breakdown: dict):
         duty.total_cost = breakdown["total_cost"]
         duty.currency = breakdown["currency"]
 
-    await db.commit()
-    await db.refresh(duty)
+    if commit:
+        await db.commit()
+        await db.refresh(duty)
     return duty

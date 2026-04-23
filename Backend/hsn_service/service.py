@@ -25,6 +25,8 @@ def load_hsn_model():
     idx2hsn = {i: str(i).zfill(2) + "0000" for i in range(1, 100)} # HSN Chapters are 1-99
 
 
+from starlette.concurrency import run_in_threadpool
+
 async def predict_hsn_code(db: AsyncSession, product_name: str) -> dict:
     if model is None:
         load_hsn_model()
@@ -42,7 +44,10 @@ async def predict_hsn_code(db: AsyncSession, product_name: str) -> dict:
             "model_version": "HSN-Master-Lookup",
         }
 
-    # 2. ML Fallback
+    # 2. ML Fallback (Run CPU-bound torch in threadpool)
+    return await run_in_threadpool(_sync_ml_predict, product_name)
+
+def _sync_ml_predict(product_name: str) -> dict:
     tensor_input = tokenize_and_pad(product_name, word2idx)
     with torch.no_grad():
         logits = model(tensor_input)
@@ -61,6 +66,7 @@ async def save_hsn_classification(
     shipment_id: int,
     product_name: str,
     prediction: dict,
+    commit: bool = True
 ):
     shipment = await db.get(Shipment, shipment_id)
     if shipment is None:
@@ -78,8 +84,9 @@ async def save_hsn_classification(
         existing.hsn_code = str(prediction["hsn_code"])
         existing.confidence_score = prediction["confidence_score"]
         existing.model_version = prediction["model_version"]
-        await db.commit()
-        await db.refresh(existing)
+        if commit:
+            await db.commit()
+            await db.refresh(existing)
         return existing, None
 
     classification = HSNClassification(
@@ -90,6 +97,7 @@ async def save_hsn_classification(
         model_version=prediction["model_version"],
     )
     db.add(classification)
-    await db.commit()
-    await db.refresh(classification)
+    if commit:
+        await db.commit()
+        await db.refresh(classification)
     return classification, None

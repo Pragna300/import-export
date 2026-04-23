@@ -57,14 +57,16 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
     async with async_session() as db:
         document = None
         try:
-            raw_text = extract_text_from_file(file_path, file_ext)
+            # 🚀 OPTIMIZATION: Extract text using threadpool (async-friendly)
+            raw_text = await extract_text_from_file(file_path, file_ext)
             
             # Update status to indicate OCR is done and AI analysis is starting
             document = await db.get(Document, doc_id)
             if document:
                 document.extracted_data = {"status": "Analyzing Content..."}
-                await db.commit()
+                await db.commit() # Necessary to update status for frontend polling
 
+            # 🚀 LLM Analysis (Async httpx call)
             structured_json = await process_invoice_with_llm(raw_text)
 
             document = await db.get(Document, doc_id)
@@ -72,57 +74,63 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
                 return
 
             document.extracted_data = structured_json
-
             if "error" in structured_json:
                 document.status = "Failed"
                 await db.commit()
                 return
 
             extracted_data = ExtractedInvoiceData(**structured_json)
-            shipment = Shipment(
-                shipment_code=f"SHN-{uuid.uuid4().hex[:8].upper()}",
-                product_name=extracted_data.product_name,
-                quantity=extracted_data.quantity,
-                unit_price=extracted_data.price,
-                total_value=extracted_data.quantity * extracted_data.price,
-                origin_country=extracted_data.country,
-                destination_country=extracted_data.destination_country,
-                description=extracted_data.description,
-                currency=extracted_data.currency,
-                status="Processing",
-            )
-
-            db.add(shipment)
+            # 🚀 NEW SHIPMENT DETECTION & CREATION
+            shipment = None
+            if extracted_data.shipment_code:
+                # Try to find existing shipment by code
+                from sqlalchemy import select
+                stmt = select(Shipment).where(Shipment.shipment_code == extracted_data.shipment_code)
+                res = await db.execute(stmt)
+                shipment = res.scalars().first()
+            
+            if not shipment:
+                # Create new one if not found or no code provided
+                shipment = Shipment(
+                    shipment_code=extracted_data.shipment_code or f"SHN-{uuid.uuid4().hex[:8].upper()}",
+                    product_name=extracted_data.product_name,
+                    quantity=extracted_data.quantity,
+                    unit_price=extracted_data.price,
+                    total_value=extracted_data.quantity * extracted_data.price,
+                    origin_country=extracted_data.country,
+                    destination_country=extracted_data.destination_country,
+                    description=extracted_data.description,
+                    currency=extracted_data.currency,
+                    status="Processing",
+                )
+                db.add(shipment)
+                await db.flush() # Get shipment.id without full commit
+            
             document.shipment_id = shipment.id
-            await db.commit()
-            await db.refresh(shipment)
-            await db.refresh(document)
-
+            
             # 1. HSN Classification (Direct Call)
             prediction = await predict_hsn_code(db, extracted_data.product_name)
-            hsn_record, _ = await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction)
+            hsn_record, _ = await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction, commit=False)
             
-            document.extracted_data = {**document.extracted_data, "hsn_result": prediction}
-            await db.commit()
-            await db.refresh(document)
-
             # 2. Duty Calculation (Direct Call)
             breakdown = await calculate_duty_breakdown(db, shipment, hsn_record.hsn_code)
-            duty_record = await save_duty_result(db, breakdown)
+            duty_record = await save_duty_result(db, breakdown, commit=False)
             
-            document.extracted_data = {**document.extracted_data, "duty_result": breakdown}
-            await db.commit()
-            await db.refresh(document)
-
             # 3. Risk Assessment (Direct Call)
             risk_prediction = await assess_risk(db, shipment, hsn_record, duty_record)
-            await save_risk_assessment(db, risk_prediction)
+            await save_risk_assessment(db, risk_prediction, commit=False)
             
-            document.extracted_data = {**document.extracted_data, "risk_result": risk_prediction}
+            # Final Document Update
+            document.extracted_data = {
+                **structured_json,
+                "hsn_result": prediction,
+                "duty_result": breakdown,
+                "risk_result": risk_prediction
+            }
             document.status = "Completed"
-            
-            # Mark shipment as fully processed
             shipment.status = "Pending Review"
+            
+            # 🚀 FINAL BATCH COMMIT
             await db.commit()
 
         except ValidationError as exc:
@@ -139,4 +147,7 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
                 await db.rollback()
         finally:
             if os.path.exists(file_path):
-                os.remove(file_path)
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
