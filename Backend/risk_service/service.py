@@ -6,8 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.models import Duty, HSNClassification, RiskAssessment, Shipment
 
-HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", "http://127.0.0.1:8000")
-DUTY_SERVICE_URL = os.getenv("DUTY_SERVICE_URL", "http://127.0.0.1:8000")
+PORT = os.getenv("PORT", "8000")
+HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", f"http://127.0.0.1:{PORT}")
+DUTY_SERVICE_URL = os.getenv("DUTY_SERVICE_URL", f"http://127.0.0.1:{PORT}")
 
 HIGH_RISK_COUNTRIES = {"afghanistan", "iran", "north korea", "syria"}
 MEDIUM_RISK_COUNTRIES = {"russia", "myanmar", "iraq", "sudan"}

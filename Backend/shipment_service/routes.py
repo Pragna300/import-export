@@ -10,9 +10,10 @@ from . import service
 from .schemas import ShipmentResponse, TrackingCreate, ShipmentCreate
 from tracking_service.service import manager
 
-HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", "http://127.0.0.1:8000")
-DUTY_SERVICE_URL = os.getenv("DUTY_SERVICE_URL", "http://127.0.0.1:8000")
-RISK_SERVICE_URL = os.getenv("RISK_SERVICE_URL", "http://127.0.0.1:8000")
+PORT = os.getenv("PORT", "8000")
+HSN_SERVICE_URL = os.getenv("HSN_SERVICE_URL", f"http://127.0.0.1:{PORT}")
+DUTY_SERVICE_URL = os.getenv("DUTY_SERVICE_URL", f"http://127.0.0.1:{PORT}")
+RISK_SERVICE_URL = os.getenv("RISK_SERVICE_URL", f"http://127.0.0.1:{PORT}")
 
 router = APIRouter(prefix="/shipments", tags=["Shipments"])
 

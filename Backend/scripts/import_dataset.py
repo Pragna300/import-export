@@ -22,8 +22,6 @@ async def import_data():
     
     async with async_session() as db:
         # 1. Ensure a System User exists
-        result = await db.execute(asyncio.get_event_loop().run_in_executor(None, lambda: db.get(User, 1)))
-        # Wait, db.get is not async in older sqlalchemy, but here we use AsyncSession
         system_user = await db.get(User, 1)
         if not system_user:
             print("👤 Creating system user...")
