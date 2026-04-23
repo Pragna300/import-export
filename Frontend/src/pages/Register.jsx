@@ -6,7 +6,7 @@ import config from '../config';
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('Client');
+  const [role, setRole] = useState('Admin');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -104,21 +104,6 @@ export default function Register() {
               onChange={(e) => setEmail(e.target.value)}
               className="flex-1 px-3 py-3 md:py-3.5 bg-[#eef3fb] text-slate-800 placeholder-slate-400 outline-none w-full font-medium"
             />
-          </div>
-
-          {/* Role Dropdown */}
-          <div className="relative flex border border-[#e8d5c4] rounded-xl overflow-hidden bg-white focus-within:ring-2 focus-within:ring-[#1D3260] transition-shadow duration-200">
-            <select 
-              className="block flex-1 w-full pl-4 pr-10 py-3.5 bg-white text-slate-800 appearance-none focus:outline-none font-medium"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="Client">Client</option>
-              <option value="Admin">Admin</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-              <ChevronDown className="h-5 w-5 text-slate-800" />
-            </div>
           </div>
 
           {/* Password Input */}
