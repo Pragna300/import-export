@@ -37,11 +37,20 @@ async def import_data():
             await db.refresh(system_user)
 
         # 2. Read CSV
+        from sqlalchemy import select
+
         with open(CSV_FILE, mode='r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             count = 0
+            skipped = 0
             for row in reader:
                 try:
+                    # ✅ CHECK FOR DUPLICATES: Skip if shipment_code already exists
+                    existing = await db.execute(select(Shipment).where(Shipment.shipment_code == row['shipment_id']))
+                    if existing.scalars().first():
+                        skipped += 1
+                        continue
+
                     # Parse date
                     invoice_date = datetime.strptime(row['invoice_date'], '%Y-%m-%d')
                     
@@ -102,7 +111,7 @@ async def import_data():
                     continue
 
             await db.commit()
-            print(f"✅ Successfully imported {count} records!")
+            print(f"✅ Successfully imported {count} records! (Skipped {skipped} duplicates)")
 
 if __name__ == "__main__":
     asyncio.run(import_data())

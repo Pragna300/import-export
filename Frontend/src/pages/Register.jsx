@@ -19,6 +19,11 @@ export default function Register() {
     setError('');
 
     // Basic Validations
+    if (!email.toLowerCase().endsWith("@shnoor.com")) {
+      setError('Registration is restricted to employees with @shnoor.com email addresses.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -93,7 +98,7 @@ export default function Register() {
             </div>
             <input 
               type="email" 
-              placeholder="Work Email" 
+              placeholder="@shnoor.com Work Email" 
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

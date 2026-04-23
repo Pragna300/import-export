@@ -53,84 +53,90 @@ async def call_internal_service(endpoint: str, payload: dict) -> dict:
 
 
 async def background_process_invoice(file_path: str, file_ext: str, doc_id: int):
-    db = async_session()
-    document = None
+    from database import async_session
+    async with async_session() as db:
+        document = None
+        try:
+            raw_text = extract_text_from_file(file_path, file_ext)
+            
+            # Update status to indicate OCR is done and AI analysis is starting
+            document = await db.get(Document, doc_id)
+            if document:
+                document.extracted_data = {"status": "Analyzing Content..."}
+                await db.commit()
 
-    try:
-        raw_text = extract_text_from_file(file_path, file_ext)
-        structured_json = await process_invoice_with_llm(raw_text)
+            structured_json = await process_invoice_with_llm(raw_text)
 
-        document = await db.get(Document, doc_id)
-        if not document:
-            return
+            document = await db.get(Document, doc_id)
+            if not document:
+                return
 
-        document.extracted_data = structured_json
+            document.extracted_data = structured_json
 
-        if "error" in structured_json:
-            document.status = "Failed"
+            if "error" in structured_json:
+                document.status = "Failed"
+                await db.commit()
+                return
+
+            extracted_data = ExtractedInvoiceData(**structured_json)
+            shipment = Shipment(
+                shipment_code=f"SHN-{uuid.uuid4().hex[:8].upper()}",
+                product_name=extracted_data.product_name,
+                quantity=extracted_data.quantity,
+                unit_price=extracted_data.price,
+                total_value=extracted_data.quantity * extracted_data.price,
+                origin_country=extracted_data.country,
+                destination_country=extracted_data.destination_country,
+                description=extracted_data.description,
+                currency=extracted_data.currency,
+                status="Processing",
+            )
+
+            db.add(shipment)
+            document.shipment_id = shipment.id
             await db.commit()
-            return
+            await db.refresh(shipment)
+            await db.refresh(document)
 
-        extracted_data = ExtractedInvoiceData(**structured_json)
-        shipment = Shipment(
-            shipment_code=f"SHP-{uuid.uuid4().hex[:8].upper()}",
-            product_name=extracted_data.product_name,
-            quantity=extracted_data.quantity,
-            unit_price=extracted_data.price,
-            total_value=extracted_data.quantity * extracted_data.price,
-            origin_country=extracted_data.country,
-            destination_country=extracted_data.destination_country,
-            description=extracted_data.description,
-            currency=extracted_data.currency,
-            status="Processing",
-        )
-
-        db.add(shipment)
-        document.shipment_id = shipment.id
-        await db.commit()
-        await db.refresh(shipment)
-        await db.refresh(document)
-
-        # 1. HSN Classification (Direct Call)
-        prediction = await predict_hsn_code(db, extracted_data.product_name)
-        hsn_record, _ = await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction)
-        
-        document.extracted_data = {**document.extracted_data, "hsn_result": prediction}
-        await db.commit()
-        await db.refresh(document)
-
-        # 2. Duty Calculation (Direct Call)
-        breakdown = await calculate_duty_breakdown(db, shipment, hsn_record.hsn_code)
-        duty_record = await save_duty_result(db, breakdown)
-        
-        document.extracted_data = {**document.extracted_data, "duty_result": breakdown}
-        await db.commit()
-        await db.refresh(document)
-
-        # 3. Risk Assessment (Direct Call)
-        risk_prediction = await assess_risk(db, shipment, hsn_record, duty_record)
-        await save_risk_assessment(db, risk_prediction)
-        
-        document.extracted_data = {**document.extracted_data, "risk_result": risk_prediction}
-        document.status = "Completed"
-        
-        # Mark shipment as fully processed
-        shipment.status = "Pending Review"
-        await db.commit()
-
-    except ValidationError as exc:
-        if document is not None:
-            document.status = "Failed Validation"
-            document.extracted_data = {"error": "Invalid OCR payload", "detail": str(exc)}
+            # 1. HSN Classification (Direct Call)
+            prediction = await predict_hsn_code(db, extracted_data.product_name)
+            hsn_record, _ = await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction)
+            
+            document.extracted_data = {**document.extracted_data, "hsn_result": prediction}
             await db.commit()
-    except Exception as exc:
-        if document is not None:
-            document.status = "Error"
-            document.extracted_data = {"error": str(exc)}
+            await db.refresh(document)
+
+            # 2. Duty Calculation (Direct Call)
+            breakdown = await calculate_duty_breakdown(db, shipment, hsn_record.hsn_code)
+            duty_record = await save_duty_result(db, breakdown)
+            
+            document.extracted_data = {**document.extracted_data, "duty_result": breakdown}
             await db.commit()
-        else:
-            await db.rollback()
-    finally:
-        await db.close()
-        if os.path.exists(file_path):
-            os.remove(file_path)
+            await db.refresh(document)
+
+            # 3. Risk Assessment (Direct Call)
+            risk_prediction = await assess_risk(db, shipment, hsn_record, duty_record)
+            await save_risk_assessment(db, risk_prediction)
+            
+            document.extracted_data = {**document.extracted_data, "risk_result": risk_prediction}
+            document.status = "Completed"
+            
+            # Mark shipment as fully processed
+            shipment.status = "Pending Review"
+            await db.commit()
+
+        except ValidationError as exc:
+            if document is not None:
+                document.status = "Failed Validation"
+                document.extracted_data = {"error": "Invalid OCR payload", "detail": str(exc)}
+                await db.commit()
+        except Exception as exc:
+            if document is not None:
+                document.status = "Error"
+                document.extracted_data = {"error": str(exc)}
+                await db.commit()
+            else:
+                await db.rollback()
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)

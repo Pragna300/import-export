@@ -11,6 +11,10 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
     
     if not user:
         return None
+    
+    # ✅ DOMAIN ENFORCEMENT: Only @shnoor.com allowed to log in
+    if not email.lower().endswith("@shnoor.com"):
+        return None
     if not user.is_active:
         return None
     if not utils.verify_password(password, user.password_hash):
@@ -26,6 +30,13 @@ async def get_user_by_email(db: AsyncSession, email: str):
 async def create_user(db: AsyncSession, user_data: schemas.UserCreate):
     """Create a new user asynchronously"""
     try:
+        # ✅ DOMAIN ENFORCEMENT: Only @shnoor.com emails allowed
+        if not user_data.email.lower().endswith("@shnoor.com"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied. Registration is restricted to employees with @shnoor.com email addresses."
+            )
+
         # Hash the password
         hashed_password = utils.get_password_hash(user_data.password)
         

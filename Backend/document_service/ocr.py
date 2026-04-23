@@ -13,7 +13,9 @@ def extract_text_from_file(file_path: str, file_extension: str) -> str:
 
     if file_extension == ".pdf":
         with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
+            # 🚀 SPEED OPTIMIZATION: Process only the first 3 pages for invoices
+            pages_to_process = pdf.pages[:3]
+            for page in pages_to_process:
                 page_text = page.extract_text()
                 if page_text:
                     text += page_text + "\n"
@@ -57,6 +59,8 @@ async def process_invoice_with_llm(raw_text: str) -> dict:
     payload = {
         "model": "openai/gpt-4o-mini",
         "messages": [{"role": "user", "content": prompt + "\n\n" + raw_text}],
+        "max_tokens": 500,
+        "temperature": 0.1, # Lower temperature for faster, more deterministic JSON
     }
 
     try:

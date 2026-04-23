@@ -16,10 +16,14 @@ else:
     elif DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+from sqlalchemy.pool import NullPool
+
 engine = create_async_engine(
     DATABASE_URL or "postgresql+asyncpg://localhost/dummy", 
     echo=False,
-    connect_args={"statement_cache_size": 0}
+    connect_args={"statement_cache_size": 0},
+    pool_pre_ping=True,
+    poolclass=NullPool
 )
 
 async_session = sessionmaker(

@@ -44,8 +44,11 @@ const Home = () => {
            </a>
         </div>
         <div className="flex items-center gap-4">
-           <Link to="/login" className="btn-premium px-6 py-2.5">
-             Access Portal
+           <Link to="/login" className="text-slate-600 hover:text-blue-600 font-bold text-[10px] uppercase tracking-widest transition-colors">
+             Login
+           </Link>
+           <Link to="/register" className="btn-premium px-6 py-2.5">
+             Create Account
            </Link>
         </div>
       </nav>
@@ -141,6 +144,37 @@ const Home = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Registration CTA Section */}
+      <section className="py-24 px-8 bg-blue-600 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent animate-pulse" />
+        </div>
+        <div className="max-w-4xl mx-auto text-center relative z-10 space-y-8">
+           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-[0.2em]">
+             <Users size={14} />
+             Exclusive Employee Access
+           </div>
+           <h2 className="text-4xl md:text-5xl font-black text-white leading-tight">
+             Ready to streamline your <br/>logistics workflow?
+           </h2>
+           <p className="text-xl text-blue-100 font-medium max-w-2xl mx-auto">
+             Join the internal Shnoor network to access AI-powered HSN mapping, predictive tracking, and enterprise-grade reporting.
+           </p>
+           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+             <Link to="/register" className="bg-white text-blue-600 px-10 py-4 rounded-xl font-black text-sm hover:bg-blue-50 transition-all shadow-xl flex items-center justify-center gap-2 group">
+               Create Employee Account
+               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+             </Link>
+             <Link to="/login" className="bg-transparent border-2 border-white/30 text-white px-10 py-4 rounded-xl font-black text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-2">
+               Sign In
+             </Link>
+           </div>
+           <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">
+             * Restricted to @shnoor.com email addresses
+           </p>
         </div>
       </section>
 
