@@ -102,6 +102,11 @@ async def startup():
         asyncio.create_task(listen_to_pg_tracking())
         print("✅ Live tracking listener initialized")
 
+        # 🚀 PRE-LOAD HSN MODEL
+        from hsn_service.service import load_hsn_model
+        load_hsn_model()
+        print("✅ HSN Model pre-loaded")
+
     except Exception as e:
         print("❌ Startup error:", e)
 
