@@ -33,12 +33,16 @@ async def get_ai_insight(product: str, origin: str, destination: str, status: st
     return "AI analysis unavailable. Standard transit times apply."
 
 async def create_shipment(db: AsyncSession, payload: ShipmentCreate):
+    # Safety check for quantity and unit_price
+    q = payload.quantity or 0
+    p = payload.unit_price or 0.0
+    
     new_shipment = Shipment(
         shipment_code=f"SHP-{uuid.uuid4().hex[:8].upper()}",
         product_name=payload.product_name,
         quantity=payload.quantity,
         unit_price=payload.unit_price,
-        total_value=payload.quantity * payload.unit_price,
+        total_value=q * p,
         origin_country=payload.origin_country,
         destination_country=payload.destination_country,
         currency=payload.currency,
@@ -67,12 +71,16 @@ async def get_all_shipments(db: AsyncSession, skip: int = 0, limit: int = 50, se
     )
     shipments = result.scalars().all()
     
-    # Inject AI insights for specific searches
+    # 🚀 SPEED OPTIMIZATION: Parallelize AI insights for search results
     if search and shipments:
-        for s in shipments:
-            s.ai_insight = await get_ai_insight(
-                s.product_name, s.origin_country, s.destination_country, s.status
-            )
+        import asyncio
+        tasks = [
+            get_ai_insight(s.product_name, s.origin_country, s.destination_country, s.status)
+            for s in shipments
+        ]
+        insights = await asyncio.gather(*tasks)
+        for s, insight in zip(shipments, insights):
+            s.ai_insight = insight
             
     return shipments
 

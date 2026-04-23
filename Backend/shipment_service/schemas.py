@@ -4,8 +4,8 @@ from datetime import datetime
 
 class ShipmentBase(BaseModel):
     product_name: str
-    quantity: int
-    unit_price: float
+    quantity: Optional[int] = None
+    unit_price: Optional[float] = None
     origin_country: Optional[str] = None
     destination_country: Optional[str] = None
     currency: Optional[str] = "INR"

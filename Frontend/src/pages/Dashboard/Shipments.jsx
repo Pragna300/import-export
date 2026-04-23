@@ -15,6 +15,7 @@ import {
   Loader2,
   FileText,
   DollarSign,
+  Database,
   X
 } from 'lucide-react';
 
@@ -124,6 +125,27 @@ const Shipments = () => {
               />
            </div>
            <button 
+             onClick={async () => {
+               if(window.confirm("Seed database with 500 records from CSV dataset?")) {
+                 setIsLoading(true);
+                 try {
+                   const response = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
+                   const data = await response.json();
+                   alert(data.message || "Import initiated!");
+                   fetchShipments();
+                 } catch (err) {
+                   alert("Seed failed: " + err.message);
+                 } finally {
+                   setIsLoading(false);
+                 }
+               }
+             }}
+             className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 active:scale-95 transition-all"
+           >
+             <Database size={16} />
+             Seed CSV Dataset
+           </button>
+           <button 
              onClick={() => setIsModalOpen(true)}
              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
            >
@@ -146,7 +168,7 @@ const Shipments = () => {
          <div className="bg-blue-600 p-4 rounded-xl border border-blue-600 shadow-sm shadow-blue-200 text-white md:col-span-2">
             <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Ledger Sync</p>
             <div className="flex items-center justify-between gap-4">
-               <p className="text-xl font-black italic">500 Records Found</p>
+               <p className="text-xl font-black italic">{shipments.length} Records Found</p>
                <div className="h-2 flex-1 bg-blue-400/50 rounded-full overflow-hidden">
                   <div className="h-full bg-white w-[100%]" />
                </div>

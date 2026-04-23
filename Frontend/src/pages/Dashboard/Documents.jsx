@@ -12,6 +12,7 @@ import {
   Loader2,
   Upload,
   X,
+  Trash2,
   Brain,
   Sparkles,
   ArrowRight,
@@ -411,7 +412,7 @@ const Documents = () => {
                           className="p-1.5 text-rose-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-all tooltip"
                           title="Delete Failed Document"
                         >
-                          <X size={16} />
+                          <Trash2 size={16} />
                         </button>
                       )}
                       <button className="p-1.5 text-slate-300 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-all">
