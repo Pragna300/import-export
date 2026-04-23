@@ -7,7 +7,7 @@ from models.models import Shipment, ShipmentTracking
 from .schemas import ShipmentBase, ShipmentCreate
 import uuid
 
-AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8006")
+AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8000")
 
 async def get_ai_insight(product: str, origin: str, destination: str, status: str):
     """Call the AI service via HTTP instead of direct import."""
