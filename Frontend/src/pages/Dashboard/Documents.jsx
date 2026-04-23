@@ -110,9 +110,20 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
              ) : (
-                <div className="flex flex-col items-center gap-2">
-                   <Loader2 className="animate-spin text-blue-600" size={24} />
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parsing Logistics Schema...</p>
+                <div className="flex flex-col items-center gap-4 w-full">
+                   {docDetail?.shipment_id && (
+                      <button 
+                         onClick={() => navigate(`/dashboard/shipments`)}
+                         className="w-full bg-blue-50 text-blue-600 py-3 rounded-xl font-bold text-xs hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
+                      >
+                         <Box size={14} />
+                         Shipment Created - View Record
+                      </button>
+                   )}
+                   <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="animate-spin text-blue-600" size={24} />
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parsing Logistics Schema...</p>
+                   </div>
                 </div>
              )}
              

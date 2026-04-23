@@ -170,19 +170,29 @@ const HSN = () => {
             </button>
 
             {predictionResult && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100 animate-in zoom-in-95 duration-300">
-                <div className="flex justify-between items-start mb-3">
-                   <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">AI Prediction</p>
-                   <span className="text-[10px] font-black bg-blue-600 text-white px-1.5 py-0.5 rounded uppercase">{predictionResult.hsn_code}</span>
-                </div>
-                <div className="space-y-3">
-                   <div>
-                     <p className="text-xs font-bold text-slate-700">Classification Details</p>
-                     <p className="text-[11px] text-slate-500 leading-tight mt-1">{predictionResult.description || 'Verified match from regulatory database.'}</p>
+              <div className="mt-6 p-5 bg-blue-50 rounded-2xl border border-blue-200 animate-in zoom-in-95 duration-500 shadow-lg shadow-blue-100/50">
+                <div className="flex justify-between items-start mb-4">
+                   <div className="flex items-center gap-2">
+                      <div className="p-1 bg-emerald-500 text-white rounded-full">
+                        <CheckCircle2 size={12} />
+                      </div>
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Prediction Success</p>
                    </div>
-                   <div className="flex items-center justify-between pt-2 border-t border-blue-100">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Confidence</span>
-                      <span className="text-xs font-black text-blue-600">{(predictionResult.confidence_score * 100).toFixed(1)}%</span>
+                   <span className="text-xs font-black bg-blue-600 text-white px-2 py-1 rounded-lg shadow-sm">{predictionResult.hsn_code}</span>
+                </div>
+                <div className="space-y-4">
+                   <div>
+                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-tight mb-1">AI Logic & Description</p>
+                     <p className="text-xs text-slate-700 leading-relaxed font-medium">{predictionResult.description || 'Verified match from regulatory database.'}</p>
+                   </div>
+                   <div className="flex items-center justify-between pt-3 border-t border-blue-100">
+                      <div className="flex items-center gap-1.5">
+                         <Target size={12} className="text-blue-400" />
+                         <span className="text-[10px] font-bold text-slate-400 uppercase">Confidence</span>
+                      </div>
+                      <span className={`text-xs font-black ${predictionResult.confidence_score > 0.8 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                        {(predictionResult.confidence_score * 100).toFixed(1)}%
+                      </span>
                    </div>
                 </div>
               </div>

@@ -22,8 +22,8 @@ const DashboardLayout = () => {
   const navigation = [
     { name: 'Analytics Overview', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Documents Module', href: '/dashboard/documents', icon: FileText },
-    { name: 'Shipments Module', href: '/dashboard/shipments', icon: Truck },
-    { name: 'HSN Module', href: '/dashboard/hsn', icon: Search },
+    { name: 'Shipments', href: '/dashboard/shipments', icon: Truck },
+    { name: 'HSN Classifier', href: '/dashboard/hsn', icon: Search },
     { name: 'Duty & Risk Module', href: '/dashboard/risk', icon: ShieldAlert },
     { name: 'Live Tracking', href: '/dashboard/tracking', icon: Map },
   ];

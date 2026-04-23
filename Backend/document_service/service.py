@@ -12,6 +12,11 @@ from models.models import Document, Shipment
 from .ocr import extract_text_from_file, process_invoice_with_llm
 from .schemas import ExtractedInvoiceData
 
+# Direct imports from other services to avoid network overhead
+from hsn_service.service import predict_hsn_code, save_hsn_classification
+from duty_service.service import calculate_duty_breakdown, save_duty_result
+from risk_service.service import assess_risk, save_risk_assessment
+
 # Pointing to the unified gateway port for inter-service communication
 # In local dev it's localhost:8000. In production it's the Render service URL.
 PORT = os.getenv("PORT", "8000")
@@ -81,36 +86,33 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
         )
 
         db.add(shipment)
+        document.shipment_id = shipment.id
         await db.commit()
         await db.refresh(shipment)
+        await db.refresh(document)
 
-        # 1. HSN Classification
-        hsn_result = await call_internal_service("/hsn/", {
-            "product_name": extracted_data.product_name,
-            "shipment_id": shipment.id,
-            "persist_result": True
-        })
+        # 1. HSN Classification (Direct Call)
+        prediction = await predict_hsn_code(db, extracted_data.product_name)
+        hsn_record, _ = await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction)
+        
+        document.extracted_data = {**document.extracted_data, "hsn_result": prediction}
+        await db.commit()
+        await db.refresh(document)
 
-        # 2. Duty Calculation
-        duty_result = await call_internal_service("/duty/", {
-            "shipment_id": shipment.id,
-            "persist_result": True
-        })
+        # 2. Duty Calculation (Direct Call)
+        breakdown = await calculate_duty_breakdown(db, shipment, hsn_record.hsn_code)
+        duty_record = await save_duty_result(db, breakdown)
+        
+        document.extracted_data = {**document.extracted_data, "duty_result": breakdown}
+        await db.commit()
+        await db.refresh(document)
 
-        # 3. Risk Assessment
-        risk_result = await call_internal_service("/risk/assess/", {
-            "shipment_id": shipment.id,
-            "persist_result": True
-        })
-
-        document.shipment_id = shipment.id
+        # 3. Risk Assessment (Direct Call)
+        risk_prediction = await assess_risk(db, shipment, hsn_record, duty_record)
+        await save_risk_assessment(db, risk_prediction)
+        
+        document.extracted_data = {**document.extracted_data, "risk_result": risk_prediction}
         document.status = "Completed"
-        document.extracted_data = {
-            **structured_json,
-            "hsn_result": hsn_result,
-            "duty_result": duty_result,
-            "risk_result": risk_result
-        }
         
         # Mark shipment as fully processed
         shipment.status = "Pending Review"
