@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -167,7 +168,8 @@ async def forgot_password(
     )
     
     # Simulate sending email
-    reset_link = f"http://localhost:5173/reset-password?token={reset_token}"
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    reset_link = f"{frontend_url}/reset-password?token={reset_token}"
     print("\n" + "="*50)
     print(f"PASSWORD RESET REQUEST FOR: {user.email}")
     print(f"RESET LINK: {reset_link}")

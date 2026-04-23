@@ -58,8 +58,8 @@ const Overview = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const [granularity, setGranularity] = useState('Monthly');
-  const [startDate, setStartDate] = useState('15-10-2025');
-  const [endDate, setEndDate] = useState('15-04-2026');
+  const [startDate, setStartDate] = useState('01-01-2012');
+  const [endDate, setEndDate] = useState('31-12-2013');
 
   const [recentShipments, setRecentShipments] = useState([]);
   const [isShipmentsLoading, setIsShipmentsLoading] = useState(false);
@@ -360,9 +360,9 @@ const Overview = () => {
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <AccountCard label="Total Products" value={data?.summary?.shipments_count || '0'} subtext="Active categories" color="text-blue-600" subValue="Tracking enabled" />
-              <AccountCard label="Avg. Price Point" value="₹15,000" subtext="Standard pricing" color="text-indigo-600" />
-              <AccountCard label="Minimum Unit" value="₹10,000" subtext="Base product line" color="text-emerald-600" />
-              <AccountCard label="Peak Value" value="₹50,000" subtext="Premium inventory" color="text-rose-600" />
+              <AccountCard label="Avg. Price Point" value={data?.summary?.avg_price || '₹0'} subtext="Standard pricing" color="text-indigo-600" />
+              <AccountCard label="Minimum Unit" value={data?.summary?.min_price || '₹0'} subtext="Base product line" color="text-emerald-600" />
+              <AccountCard label="Peak Value" value={data?.summary?.peak_value || '₹0'} subtext="Premium inventory" color="text-rose-600" />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -386,15 +386,15 @@ const Overview = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={[{name: 'Classified', value: 70}, {name: 'Pending', value: 20}, {name: 'Error', value: 10}]}
+                          data={data?.hsn_status || []}
                           innerRadius={60}
                           outerRadius={80}
                           paddingAngle={5}
                           dataKey="value"
                         >
-                          <Cell fill="#10b981" />
-                          <Cell fill="#3b82f6" />
-                          <Cell fill="#f43f5e" />
+                          {(data?.hsn_status || []).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
                         </Pie>
                         <Tooltip />
                       </PieChart>

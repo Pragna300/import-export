@@ -90,28 +90,29 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         {"name": "Net Banking", "value": paid_amount * 0.1, "color": "#94a3b8"},
     ]
 
-    # Historical Time Series (Grouped by Month)
-    # Using a cross-service approach for better insight
+    # Historical Time Series (Grouped by Year and Month)
     from sqlalchemy import extract
     
     base_history_stmt = select(
+        extract('year', Shipment.created_at).label('year'),
         extract('month', Shipment.created_at).label('month'),
         func.sum(Shipment.total_value).label('revenue'),
         func.count(Shipment.id).label('count')
     )
     
-    filtered_history_stmt = apply_filters(base_history_stmt, Shipment).group_by('month').order_by('month')
+    filtered_history_stmt = apply_filters(base_history_stmt, Shipment).group_by('year', 'month').order_by('year', 'month')
     history_res = await db.execute(filtered_history_stmt)
     history_series = []
     month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     
     for row in history_res.all():
-        m_idx = int(row[0])
+        y = int(row[0])
+        m_idx = int(row[1])
         history_series.append({
-            "month": month_names[m_idx] if 0 < m_idx < 13 else str(m_idx),
-            "revenue": float(row[1] or 0),
-            "expenses": float(row[1] or 0) * 0.15, # Placeholder ratio until we have more duty dates
-            "transactions": int(row[2] or 0)
+            "month": f"{month_names[m_idx]} {y}" if 0 < m_idx < 13 else f"{m_idx}/{y}",
+            "revenue": float(row[2] or 0),
+            "expenses": float(row[2] or 0) * 0.15, # Placeholder ratio until we have more duty dates
+            "transactions": int(row[3] or 0)
         })
 
     # Fallback for UI if empty
@@ -150,6 +151,9 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
             "shipments_count": shipments_count,
             "risk_alerts": risk_alerts,
             "paid_percent": f"{(paid_amount / total_revenue_val * 100) if total_revenue_val > 0 else 0:.1f}%",
+            "avg_price": f"₹{(total_revenue_val / (shipments_count if shipments_count > 0 else 1)):,.0f}",
+            "min_price": f"₹{float(await db.scalar(apply_filters(select(func.min(Shipment.unit_price)), Shipment)) or 0):,.0f}",
+            "peak_value": f"₹{float(await db.scalar(apply_filters(select(func.max(Shipment.total_value)), Shipment)) or 0):,.0f}",
         },
         "forecasts": {
             "30_day": f"₹{forecast_30:,.0f}",
@@ -158,6 +162,11 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         },
         "category_distribution": category_dist,
         "payment_methods": payment_methods,
+        "hsn_status": [
+            {"name": "Classified", "value": int(await db.scalar(select(func.count(HSNClassification.id)))), "color": "#10b981"},
+            {"name": "Pending", "value": int(shipments_count - int(await db.scalar(select(func.count(HSNClassification.id))))), "color": "#3b82f6"},
+            {"name": "Error", "value": 0, "color": "#f43f5e"},
+        ],
         "history": history_series,
         "product_performance": product_performance
     }

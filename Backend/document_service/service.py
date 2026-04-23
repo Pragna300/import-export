@@ -14,7 +14,11 @@ from .schemas import ExtractedInvoiceData
 
 # Pointing to the unified gateway port for inter-service communication
 # In local dev it's localhost:8000. In production it's the Render service URL.
-GATEWAY_URL = os.getenv("GATEWAY_URL", "http://127.0.0.1:8000").rstrip("/")
+PORT = os.getenv("PORT", "8000")
+GATEWAY_URL = os.getenv("GATEWAY_URL", f"http://127.0.0.1:{PORT}").rstrip("/")
+
+# Directory for temporary document storage
+UPLOAD_DIR = Path("document_uploads")
 
 
 def save_upload_file(upload_file) -> tuple[str, str]:
