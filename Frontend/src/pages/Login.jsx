@@ -129,6 +129,12 @@ const Login = () => {
               {isLoading ? 'Processing...' : 'Access My Dashboard'}
               {!isLoading && <LogIn size={20} />}
             </button>
+
+            <div className="text-center pt-2">
+              <p className="text-sm font-medium text-slate-500">
+                New Employee? <Link to="/register" className="text-blue-600 font-black hover:underline tracking-tight">Create Account</Link>
+              </p>
+            </div>
           </form>
 
           <p className="text-center text-slate-400 text-xs font-bold tracking-widest uppercase py-4">
