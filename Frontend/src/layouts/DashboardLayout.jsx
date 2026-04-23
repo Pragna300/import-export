@@ -29,7 +29,7 @@ const DashboardLayout = () => {
   ];
 
   const handleLogout = () => {
-    // Clear tokens/etc later
+    localStorage.removeItem('access_token');
     navigate('/login');
   };
 

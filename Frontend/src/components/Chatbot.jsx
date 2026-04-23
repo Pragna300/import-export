@@ -121,6 +121,28 @@ const Chatbot = () => {
             )}
           </div>
 
+          {/* Quick Actions */}
+          {!isLoading && history.length === 1 && (
+            <div className="px-4 py-2 flex flex-wrap gap-2 bg-slate-50 border-t border-slate-100">
+              {[
+                "Track SHN-08897710",
+                "How to classify HSN?",
+                "Analyze risk factors"
+              ].map(q => (
+                <button 
+                  key={q}
+                  onClick={() => {
+                    setMessage(q);
+                    // Trigger send manually or just fill
+                  }}
+                  className="text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 text-blue-600 px-3 py-1.5 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all shadow-sm"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Input */}
           <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-slate-100 flex items-center gap-2">
             <input 
