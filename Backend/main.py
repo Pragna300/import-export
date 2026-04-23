@@ -28,16 +28,14 @@ app = FastAPI(title="AI Import-Export Unified Gateway")
 
 # CORS Configuration
 # When allow_credentials=True, allow_origins cannot be ["*"]
+# Using allow_origin_regex to support all Vercel subdomains and preview URLs
 raw_origins = os.getenv("CORS_ORIGINS", "https://importexport-phi.vercel.app,http://localhost:5173").split(",")
 cors_origins = [origin.strip() for origin in raw_origins if origin.strip() and origin.strip() != "*"]
-
-# If origins only contained "*" or was empty, use defaults
-if not cors_origins:
-    cors_origins = ["https://importexport-phi.vercel.app", "http://localhost:5173"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # ✅ Allows all vercel deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
