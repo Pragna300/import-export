@@ -1,11 +1,17 @@
+import sys
+import os
 import asyncio
 import pandas as pd
 import datetime
+
+# Ensure the Backend directory is in the path
+sys.path.append(os.getcwd())
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select, text
 from database import engine
 from models.models import Shipment, Duty, HSNClassification, RiskAssessment, User
-from sqlalchemy import select
 
 async def import_data():
     async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -37,6 +43,17 @@ async def import_data():
             await db.refresh(admin)
 
         print(f"⏳ Syncing data to Accountant Dashboard...")
+        
+        # CLEAR OLD DATA IN CORRECT ORDER TO AVOID FK ERRORS
+        print("🧹 Clearing old data for a clean import...")
+        await db.execute(text("DELETE FROM hsn_classifications"))
+        await db.execute(text("DELETE FROM duties"))
+        await db.execute(text("DELETE FROM risk_assessments"))
+        await db.execute(text("DELETE FROM shipment_tracking"))
+        await db.execute(text("DELETE FROM documents"))
+        await db.execute(text("DELETE FROM shipments"))
+        await db.commit()
+        
         success_count = 0
         error_count = 0
 
@@ -86,7 +103,7 @@ async def import_data():
                     tax_amount=float(row.get('tax_expense', 0)),
                     total_cost=float(row.get('duty_expense', 0)) + float(row.get('tax_expense', 0)),
                     currency="INR",
-                    created_at=invoice_dt
+                    calculated_at=invoice_dt
                 )
                 db.add(duty)
 
