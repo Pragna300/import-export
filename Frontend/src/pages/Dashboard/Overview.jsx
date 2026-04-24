@@ -58,8 +58,8 @@ const Overview = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const [granularity, setGranularity] = useState('Monthly');
-  const [startDate, setStartDate] = useState('01-01-2012');
-  const [endDate, setEndDate] = useState('31-12-2013');
+  const [startDate, setStartDate] = useState('2012-01-01');
+  const [endDate, setEndDate] = useState('2013-12-31');
 
   const [recentShipments, setRecentShipments] = useState([]);
   const [isShipmentsLoading, setIsShipmentsLoading] = useState(false);
@@ -67,7 +67,12 @@ const Overview = () => {
   const fetchData = async () => {
     setIsRefreshing(true);
     try {
-      const response = await fetch(`${config.API_BASE_URL}/analytics/summary`);
+      // Add date filters to query parameters
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', new Date(startDate).toISOString());
+      if (endDate) params.append('end_date', new Date(endDate).toISOString());
+      
+      const response = await fetch(`${config.API_BASE_URL}/analytics/summary?${params.toString()}`);
       const result = await response.json();
       setData(result);
     } catch (err) {
@@ -93,6 +98,9 @@ const Overview = () => {
 
   useEffect(() => {
     fetchData();
+  }, [startDate, endDate]); // Trigger re-fetch when dates change
+
+  useEffect(() => {
     fetchRecentShipments();
   }, []);
 
@@ -558,17 +566,23 @@ const Overview = () => {
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <Calendar size={12}/> Analysis Period (Start)
             </p>
-            <div className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none">
-               {startDate}
-            </div>
+            <input 
+               type="date"
+               value={startDate}
+               onChange={(e) => setStartDate(e.target.value)}
+               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-blue-500 transition-colors"
+            />
          </div>
          <div className="space-y-3">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <Calendar size={12}/> Analysis Period (End)
             </p>
-            <div className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none">
-               {endDate}
-            </div>
+            <input 
+               type="date"
+               value={endDate}
+               onChange={(e) => setEndDate(e.target.value)}
+               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-blue-500 transition-colors"
+            />
          </div>
       </div>
     </div>

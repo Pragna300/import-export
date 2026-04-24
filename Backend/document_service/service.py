@@ -57,8 +57,10 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
     async with async_session() as db:
         document = None
         try:
+            print(f"📄 Processing Document #{doc_id}...")
             # 🚀 OPTIMIZATION: Extract text using threadpool (async-friendly)
             raw_text = await extract_text_from_file(file_path, file_ext)
+            print(f"✅ OCR Done. Extracted {len(raw_text)} chars.")
             
             # Update status to indicate OCR is done and AI analysis is starting
             document = await db.get(Document, doc_id)
@@ -71,13 +73,17 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
 
             document = await db.get(Document, doc_id)
             if not document:
+                print(f"❌ Document #{doc_id} disappeared during processing!")
                 return
 
-            document.extracted_data = structured_json
             if "error" in structured_json:
+                print(f"❌ AI Extraction failed for Document #{doc_id}: {structured_json['error']}")
                 document.status = "Failed"
+                document.extracted_data = structured_json
                 await db.commit()
                 return
+            
+            print(f"✅ AI Extraction successful for Document #{doc_id}")
 
             extracted_data = ExtractedInvoiceData(**structured_json)
             # 🚀 NEW SHIPMENT DETECTION & CREATION
@@ -104,21 +110,33 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
                     status="Processing",
                 )
                 db.add(shipment)
-                await db.flush() # Get shipment.id without full commit
+                await db.commit() # Commit immediately so the UI sees the shipment is created
+                await db.refresh(shipment)
+                await db.refresh(document)
             
             document.shipment_id = shipment.id
+            await db.commit() # Update document with linked shipment
+            await db.refresh(document)
             
             # 1. HSN Classification (Direct Call)
             prediction = await predict_hsn_code(db, extracted_data.product_name)
-            hsn_record, _ = await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction, commit=False)
-            
+            await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction, commit=True)
+            await db.refresh(document)
+
             # 2. Duty Calculation (Direct Call)
-            breakdown = await calculate_duty_breakdown(db, shipment, hsn_record.hsn_code)
-            duty_record = await save_duty_result(db, breakdown, commit=False)
+            breakdown = await calculate_duty_breakdown(db, shipment, prediction["hsn_code"])
+            await save_duty_result(db, breakdown, commit=True)
+            await db.refresh(document)
             
             # 3. Risk Assessment (Direct Call)
-            risk_prediction = await assess_risk(db, shipment, hsn_record, duty_record)
-            await save_risk_assessment(db, risk_prediction, commit=False)
+            # Re-fetch hsn and duty records to ensure they are fresh
+            from models.models import HSNClassification, Duty
+            hsn_rec = (await db.execute(select(HSNClassification).where(HSNClassification.shipment_id == shipment.id))).scalars().first()
+            duty_rec = (await db.execute(select(Duty).where(Duty.shipment_id == shipment.id))).scalars().first()
+            
+            risk_prediction = await assess_risk(db, shipment, hsn_rec, duty_rec)
+            await save_risk_assessment(db, risk_prediction, commit=True)
+            await db.refresh(document)
             
             # Final Document Update
             document.extracted_data = {

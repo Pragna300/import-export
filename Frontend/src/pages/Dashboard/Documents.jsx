@@ -35,7 +35,7 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
           const res = await fetch(`${config_env.API_BASE_URL}/documents/${docId}`);
           const data = await res.json();
           setDocDetail(data);
-          if (data.status === 'Completed' || data.status === 'Failed' || data.status === 'Error') {
+          if (['Completed', 'Failed', 'Error', 'Failed Validation', 'Processing Error'].includes(data.status)) {
             clearInterval(interval);
           }
         } catch (err) {

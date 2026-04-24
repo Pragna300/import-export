@@ -1,5 +1,6 @@
 import json
 import os
+from dotenv import load_dotenv
 
 import httpx
 import pdfplumber
@@ -19,14 +20,17 @@ def _sync_extract_text_from_file(file_path: str, file_extension: str) -> str:
     try:
         if file_extension == ".pdf":
             with pdfplumber.open(file_path) as pdf:
-                # 🚀 SPEED OPTIMIZATION: Process only the first 3 pages for invoices
-                pages_to_process = pdf.pages[:3]
-                for page in pages_to_process:
-                    page_text = page.extract_text()
+                # 🚀 AGGRESSIVE SPEED OPTIMIZATION: Process only the FIRST page
+                if pdf.pages:
+                    page_text = pdf.pages[0].extract_text()
                     if page_text:
-                        text += page_text + "\n"
+                        text = page_text
         elif file_extension in [".jpg", ".jpeg", ".png"]:
-            image = Image.open(file_path).convert("L")
+            image = Image.open(file_path)
+            # 🚀 SPEED OPTIMIZATION: Resize large images
+            if image.width > 2000 or image.height > 2000:
+                image.thumbnail((1500, 1500))
+            image = image.convert("L")
             text = pytesseract.image_to_string(image)
     except Exception as e:
         print(f"❌ OCR Error: {e}")
@@ -58,6 +62,8 @@ async def process_invoice_with_llm(raw_text: str) -> dict:
     }
     """
 
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    load_dotenv(env_path)
     openrouter_api_key = os.getenv("OPEN_ROUTER_API_KEY")
     if not openrouter_api_key:
         return {"error": "Missing OPEN_ROUTER_API_KEY in environment variables"}
@@ -67,27 +73,39 @@ async def process_invoice_with_llm(raw_text: str) -> dict:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "openai/gpt-4o-mini",
+        "model": "google/gemini-flash-1.5:free",
         "messages": [{"role": "user", "content": prompt + "\n\n" + raw_text}],
-        "max_tokens": 500,
-        "temperature": 0.1, # Lower temperature for faster, more deterministic JSON
+        "max_tokens": 150, # Minimum tokens for basic JSON
+        "temperature": 0.0,
     }
 
     try:
+        print(f"🤖 Calling AI Intelligence Engine (Timeout: 10s)... Text Length: {len(raw_text)}")
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
+                headers={
+                    **headers,
+                    "HTTP-Referer": "https://shnoor.ai",
+                    "X-Title": "Shnoor AI"
+                },
                 json=payload,
-                timeout=60,
+                timeout=10, # Aggressive timeout
             )
 
+        if response.status_code != 200:
+            print(f"❌ AI Provider Error: {response.status_code} - {response.text}")
+            return {"error": f"AI provider error: {response.status_code}"}
+
         result = response.json()
-        if "choices" not in result:
-            return {"error": result}
+        if "choices" not in result or not result["choices"]:
+             print(f"❌ AI Provider returned no choices: {result}")
+             return {"error": "No response from AI"}
 
         content = result["choices"][0]["message"]["content"]
+        print(f"✅ AI Response Received ({len(content)} chars)")
         clean_text = content.strip().replace("```json", "").replace("```", "")
         return json.loads(clean_text)
     except Exception as exc:
+        print(f"❌ AI Extraction Exception: {str(exc)}")
         return {"error": str(exc)}

@@ -127,13 +127,17 @@ const Chatbot = () => {
               {[
                 "Track SHN-08897710",
                 "How to classify HSN?",
-                "Analyze risk factors"
+                "Where is Shnoor located?",
+                "What is Shnoor's mission?",
+                "How to contact support?",
+                "How to upload an invoice?",
+                "Check recent shipments",
+                "What is Shnoor AI?"
               ].map(q => (
                 <button 
                   key={q}
                   onClick={() => {
                     setMessage(q);
-                    // Trigger send manually or just fill
                   }}
                   className="text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 text-blue-600 px-3 py-1.5 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all shadow-sm"
                 >

@@ -23,6 +23,7 @@ class ShipmentResponse(ShipmentBase):
     current_location: Optional[str] = None
     created_at: Optional[datetime] = None
     ai_insight: Optional[str] = None
+    hsn_code: Optional[str] = None
 
 class TrackingCreate(BaseModel):
     status: str

@@ -1,5 +1,6 @@
 import asyncio
 import pandas as pd
+import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from database import engine
@@ -41,6 +42,13 @@ async def import_data():
 
         for index, row in df.iterrows():
             try:
+                # Parse invoice date
+                try:
+                    invoice_str = str(row.get('invoice_date', '')).strip()
+                    invoice_dt = datetime.datetime.strptime(invoice_str, '%Y-%m-%d')
+                except:
+                    invoice_dt = datetime.datetime.now()
+
                 # 1. Create Shipment
                 shipment = Shipment(
                     shipment_code=str(row.get('shipment_id', f"SHN-Bulk-{index}")).strip(),
@@ -53,7 +61,8 @@ async def import_data():
                     origin_country=str(row.get('origin', 'Unknown'))[:50],
                     destination_country=str(row.get('destination', 'India'))[:50],
                     status='Delivered' if row.get('status') == 'Paid' else 'In Transit',
-                    created_by=admin.id
+                    created_by=admin.id,
+                    created_at=invoice_dt
                 )
                 db.add(shipment)
                 await db.flush()
@@ -64,7 +73,8 @@ async def import_data():
                     product_name=str(row['product']),
                     hsn_code=str(row.get('hsn_code', '00000000'))[:100], # Widened
                     confidence_score=0.98,
-                    model_version="Pipeline-v2.0"
+                    model_version="Pipeline-v2.0",
+                    created_at=invoice_dt
                 )
                 db.add(hsn)
 
@@ -75,7 +85,8 @@ async def import_data():
                     duty_amount=float(row.get('duty_expense', 0)),
                     tax_amount=float(row.get('tax_expense', 0)),
                     total_cost=float(row.get('duty_expense', 0)) + float(row.get('tax_expense', 0)),
-                    currency="INR"
+                    currency="INR",
+                    created_at=invoice_dt
                 )
                 db.add(duty)
 
@@ -85,7 +96,8 @@ async def import_data():
                     risk_score=float(row.get('risk_score', 0)),
                     risk_level=str(row.get('risk_level', 'Low'))[:50],
                     reason="Bulk Financial Import",
-                    model_version="Pipeline-v2.0"
+                    model_version="Pipeline-v2.0",
+                    created_at=invoice_dt
                 )
                 db.add(risk)
                 

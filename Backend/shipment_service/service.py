@@ -64,29 +64,31 @@ async def get_all_shipments(db: AsyncSession, skip: int = 0, limit: int = 50, se
             (Shipment.product_name.ilike(search_filter))
         )
     
+    from sqlalchemy.orm import joinedload
     result = await db.execute(
-        query.order_by(Shipment.created_at.desc())
+        query.options(joinedload(Shipment.hsn_classification))
+        .order_by(Shipment.created_at.desc())
         .offset(skip)
         .limit(limit)
     )
     shipments = result.scalars().all()
     
-    # 🚀 SPEED OPTIMIZATION: Parallelize AI insights for search results
-    if search and shipments:
-        import asyncio
-        tasks = [
-            get_ai_insight(s.product_name, s.origin_country, s.destination_country, s.status)
-            for s in shipments
-        ]
-        insights = await asyncio.gather(*tasks)
-        for s, insight in zip(shipments, insights):
-            s.ai_insight = insight
+    # Map HSN code to the top-level attribute for the schema
+    for s in shipments:
+        if s.hsn_classification:
+            s.hsn_code = s.hsn_classification.hsn_code
             
     return shipments
 
 async def get_shipment_by_id(db: AsyncSession, shipment_id: int):
-    shipment = await db.get(Shipment, shipment_id)
+    from sqlalchemy.orm import joinedload
+    stmt = select(Shipment).where(Shipment.id == shipment_id).options(joinedload(Shipment.hsn_classification))
+    result = await db.execute(stmt)
+    shipment = result.scalars().first()
+    
     if shipment:
+        if shipment.hsn_classification:
+            shipment.hsn_code = shipment.hsn_classification.hsn_code
         shipment.ai_insight = await get_ai_insight(
             shipment.product_name, 
             shipment.origin_country, 
