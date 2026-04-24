@@ -1,11 +1,11 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 
 class ShipmentBase(BaseModel):
-    product_name: str
+    product_name: Optional[str] = None
     quantity: Optional[int] = None
-    unit_price: Optional[float] = None
+    unit_price: Optional[Any] = None
     origin_country: Optional[str] = None
     destination_country: Optional[str] = None
     currency: Optional[str] = "INR"
@@ -19,7 +19,7 @@ class ShipmentResponse(ShipmentBase):
     id: int
     shipment_code: Optional[str] = None
     status: Optional[str] = None
-    total_value: Optional[float] = None
+    total_value: Optional[Any] = None
     current_location: Optional[str] = None
     created_at: Optional[datetime] = None
     ai_insight: Optional[str] = None

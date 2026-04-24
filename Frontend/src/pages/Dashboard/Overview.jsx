@@ -62,6 +62,7 @@ const Overview = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Products Overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showMasterReport, setShowMasterReport] = useState(false);
   
   const [granularity, setGranularity] = useState('Monthly');
   const [startDate, setStartDate] = useState('2010-01-01');
@@ -421,6 +422,87 @@ const Overview = () => {
     }
   };
 
+  if (showMasterReport) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500 pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900 p-8 rounded-3xl text-white shadow-2xl">
+           <div className="flex items-center gap-4">
+              <div className="p-4 bg-blue-600 rounded-2xl shadow-xl">
+                <Database size={32} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-tight">Master Intelligence Report</h2>
+                <p className="text-blue-200/60 font-medium text-sm uppercase tracking-widest">Global Supply Chain Audit • {new Date().toLocaleDateString()}</p>
+              </div>
+           </div>
+           <button 
+             onClick={() => setShowMasterReport(false)}
+             className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-xs font-black uppercase tracking-widest backdrop-blur-md transition-all border border-white/10"
+           >
+             <ChevronLeft size={16} />
+             Back to Overview
+           </button>
+        </div>
+
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden max-w-4xl mx-auto animate-in zoom-in-95 duration-700">
+           <div className="p-12 space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                 {[
+                   { label: 'Gross Revenue', val: data?.summary?.total_revenue || '₹0', color: 'text-blue-600' },
+                   { label: 'Duty Impact', val: data?.summary?.total_expenses || '₹0', color: 'text-rose-600' },
+                   { label: 'HSN Accuracy', val: data?.summary?.paid_percent || '0%', color: 'text-emerald-600' }
+                 ].map((stat, i) => (
+                   <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{stat.label}</p>
+                      <p className={`text-2xl font-black ${stat.color}`}>{stat.val}</p>
+                   </div>
+                 ))}
+              </div>
+
+              <div className="space-y-6">
+                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                    <TrendingUp size={16} className="text-blue-600" /> AI Forecasting & Strategic Outlook
+                 </h3>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100">
+                       <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">30-Day Outlook</p>
+                       <p className="text-xl font-black text-blue-900">{data?.forecasts?.['30_day'] || '₹0'}</p>
+                    </div>
+                    <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                       <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">60-Day Outlook</p>
+                       <p className="text-xl font-black text-indigo-900">{data?.forecasts?.['60_day'] || '₹0'}</p>
+                    </div>
+                    <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
+                       <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">90-Day Outlook</p>
+                       <p className="text-xl font-black text-emerald-900">{data?.forecasts?.['90_day'] || '₹0'}</p>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="bg-slate-900 p-10 rounded-[2rem] text-white relative overflow-hidden">
+                 <div className="absolute top-0 right-0 p-10 opacity-5">
+                    <Zap size={100} />
+                 </div>
+                 <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Executive AI Summary</h4>
+                 <p className="text-xl font-medium leading-relaxed text-slate-200">
+                    The Shnoor AI Engine has verified all current consignments with a {data?.summary?.paid_percent || '94%'} accuracy rating. 
+                    Financial health remains optimal with revenue significantly outperforming operational duty costs.
+                 </p>
+              </div>
+
+              <button 
+                onClick={() => window.print()}
+                className="w-full bg-blue-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-700 transition-all shadow-2xl flex items-center justify-center gap-3"
+              >
+                <Printer size={20} />
+                Generate Audit PDF
+              </button>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       {/* Premium Header */}
@@ -438,95 +520,27 @@ const Overview = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-3 relative z-10">
-           {(!data?.summary?.shipments_count || data?.summary?.shipments_count === '0') && (
+           {data?.summary?.shipments_count > 0 && (
              <button 
-               onClick={async () => {
-                 if(window.confirm("Initialize Intelligence Hub with AI Training Dataset?")) {
-                   setIsRefreshing(true);
-                   try {
-                     const res = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
-                     const d = await res.json();
-                     alert(d.message || "Import successful!");
-                     fetchData(); fetchRecentShipments();
-                   } catch (err) {
-                     alert("Import failed: " + err.message);
-                   } finally {
-                     setIsRefreshing(false);
-                   }
-                 }
-               }}
-               className="bg-blue-500 hover:bg-blue-400 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/40 transition-all active:scale-95 flex items-center gap-2"
-             >
-               <Database size={16} /> Import Intelligence Seed
-             </button>
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `shnoor_analytics_${new Date().toISOString().split('T')[0]}.json`;
+                  a.click();
+                }}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center gap-2 border border-emerald-500/20"
+              >
+                <Download size={16} /> Download All Analytics
+              </button>
            )}
            <button 
-             onClick={() => {
-                const win = window.open('', '_blank');
-                win.document.write(`
-                    <html>
-                        <head>
-                            <title>Shnoor Master Intelligence Report</title>
-                            <style>
-                                body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
-                                .header { border-bottom: 4px solid #2563eb; padding-bottom: 25px; margin-bottom: 40px; }
-                                .section { margin-bottom: 40px; }
-                                .section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #64748b; margin-bottom: 15px; }
-                                .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-                                .card { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
-                                .label { font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; }
-                                .value { font-size: 18px; font-weight: 900; margin-top: 4px; color: #0f172a; }
-                                .chart-placeholder { height: 10px; background: #2563eb; border-radius: 2px; margin-top: 10px; }
-                                .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center; }
-                            </style>
-                        </head>
-                        <body onload="window.print()">
-                            <div class="header">
-                                <h1 style="margin:0; font-size: 32px; font-weight: 900; color:#0f172a;">Master Analytics Report</h1>
-                                <p style="margin:8px 0 0 0; color:#2563eb; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Shnoor Logistics Intelligence Hub • Audit Date: ${new Date().toLocaleDateString()}</p>
-                            </div>
-                            
-                            <div class="section">
-                                <div class="section-title">Global Performance Metrics</div>
-                                <div class="grid">
-                                    <div class="card"><div class="label">Gross Revenue</div><div class="value">${data?.summary?.total_revenue || '₹0'}</div></div>
-                                    <div class="card"><div class="label">Duty & Tax Impact</div><div class="value">${data?.summary?.total_expenses || '₹0'}</div></div>
-                                    <div class="card"><div class="label">Active Consignments</div><div class="value">${data?.summary?.shipments_count || '0'}</div></div>
-                                    <div class="card"><div class="label">HSN Success Rate</div><div class="value">${data?.summary?.paid_percent || '0%'}</div></div>
-                                    <div class="card"><div class="label">System Risk Alerts</div><div class="value">${data?.summary?.risk_alerts || '0'}</div></div>
-                                    <div class="card"><div class="label">Average Transaction</div><div class="value">${data?.summary?.avg_price || '₹0'}</div></div>
-                                </div>
-                            </div>
-
-                            <div class="section">
-                                <div class="section-title">AI Forecasting & Outlook</div>
-                                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
-                                    <div class="card" style="border-top: 3px solid #3b82f6;"><div class="label">30-Day Outlook</div><div class="value">${data?.forecasts?.['30_day'] || '₹0'}</div></div>
-                                    <div class="card" style="border-top: 3px solid #6366f1;"><div class="label">60-Day Outlook</div><div class="value">${data?.forecasts?.['60_day'] || '₹0'}</div></div>
-                                    <div class="card" style="border-top: 3px solid #10b981;"><div class="label">90-Day Outlook</div><div class="value">${data?.forecasts?.['90_day'] || '₹0'}</div></div>
-                                </div>
-                            </div>
-
-                            <div style="margin-top: 40px; padding: 40px; background: #0f172a; border-radius: 20px; color: white;">
-                                <h3 style="margin:0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.6;">Executive Summary</h3>
-                                <p style="margin:15px 0 0 0; font-size: 16px; font-weight: 500; line-height: 1.6;">
-                                    The Shnoor AI Engine has verified all current consignments with a ${data?.summary?.paid_percent || '94%'} accuracy rating. 
-                                    Financial health remains optimal with revenue significantly outperforming operational duty costs.
-                                </p>
-                            </div>
-
-                            <div class="footer">
-                                SHNOOR LOGISTICS PRIVATE LIMITED • CONFIDENTIAL INTELLIGENCE • GENERATED BY AI
-                            </div>
-                        </body>
-                    </html>
-                `);
-                win.document.close();
-             }}
-             className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all flex items-center gap-2 border border-slate-700 group"
-           >
-             <Printer size={16} className="group-hover:scale-110 transition-transform" /> Download Master Analytics (PDF)
-           </button>
+              onClick={() => setShowMasterReport(true)}
+              className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all flex items-center gap-2 border border-slate-700 group"
+            >
+              <Printer size={16} className="group-hover:scale-110 transition-transform" /> View Master Analytics
+            </button>
            <button 
              onClick={() => { fetchData(); fetchRecentShipments(); }}
              className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10"

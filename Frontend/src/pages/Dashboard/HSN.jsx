@@ -15,7 +15,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  Printer
+  Printer,
+  Download
 } from 'lucide-react';
 
 // --- Confidence meter mini-component ---
@@ -41,6 +42,7 @@ const HSN = () => {
   const [page, setPage] = useState(0);
   const perPage = 15;
   const [predictionResult, setPredictionResult] = useState(null);
+  const [selectedAudit, setSelectedAudit] = useState(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [description, setDescription] = useState('');
 
@@ -95,6 +97,86 @@ const HSN = () => {
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice(page * perPage, (page + 1) * perPage);
   const verifiedCount = items.filter(i => i.status === 'Verified').length;
+
+  if (selectedAudit) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500 pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+           <div className="flex items-center gap-4">
+              <div className="p-4 bg-emerald-500 text-white rounded-3xl shadow-2xl">
+                <Target size={32} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">HSN Intelligence Audit</h2>
+                <p className="text-sm font-medium text-slate-400">Product Reference: {selectedAudit.product}</p>
+              </div>
+           </div>
+           <button 
+             onClick={() => setSelectedAudit(null)}
+             className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200"
+           >
+             <ChevronLeft size={16} />
+             Back to Ledger
+           </button>
+        </div>
+
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden max-w-2xl mx-auto animate-in zoom-in-95 duration-700">
+           <div className="bg-emerald-600 p-8 text-white">
+              <div className="flex justify-between items-start mb-8">
+                 <span className="px-4 py-1.5 bg-white/20 text-[10px] font-black uppercase tracking-[0.2em] rounded-full backdrop-blur-md">AI Verified Match</span>
+                 <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Model: {selectedAudit.model_version}</p>
+              </div>
+              <h3 className="text-4xl font-black leading-tight mb-2">HSN Classification Audit</h3>
+              <p className="text-emerald-100/60 font-medium text-sm italic">Harmonized System Code Intelligence verification.</p>
+           </div>
+
+           <div className="p-10 space-y-8">
+              <div className="grid grid-cols-1 gap-6">
+                 <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Assigned HSN Code</p>
+                    <div className="flex items-center gap-4">
+                       <span className="text-4xl font-black text-slate-900 font-mono tracking-tighter">{selectedAudit.hsn_code}</span>
+                       <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg text-xs font-black">CONFIDENCE: {selectedAudit.confidence}%</span>
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Shipment Attribution</p>
+                       <p className="text-lg font-black text-slate-900">{selectedAudit.shipment_code}</p>
+                    </div>
+                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Verification Status</p>
+                       <p className="text-lg font-black text-emerald-600 uppercase">{selectedAudit.status}</p>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="p-8 bg-slate-900 rounded-[2rem] text-white">
+                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">AI Logic & Description</p>
+                 <p className="text-md font-medium leading-relaxed opacity-80">
+                    The Shnoor AI Engine has mapped this product to the current tariff regime with a verified match from the regulatory database.
+                 </p>
+              </div>
+
+               <button 
+                 onClick={() => {
+                   const blob = new Blob([JSON.stringify(selectedAudit, null, 2)], { type: 'application/json' });
+                   const url = URL.createObjectURL(blob);
+                   const a = document.createElement('a');
+                   a.href = url;
+                   a.download = `hsn_audit_${selectedAudit.hsn_code}.json`;
+                   a.click();
+                 }}
+                 className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-3"
+               >
+                 <Download size={18} />
+                 Download HSN Audit (JSON)
+               </button>
+           </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
@@ -296,55 +378,11 @@ const HSN = () => {
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => {
-                                const win = window.open('', '_blank');
-                                win.document.write(`
-                                    <html>
-                                        <head>
-                                            <title>HSN Classification Audit - ${item.product}</title>
-                                            <style>
-                                                body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
-                                                .header { border-bottom: 4px solid #3b82f6; padding-bottom: 25px; margin-bottom: 40px; }
-                                                .card { background: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
-                                                .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-                                                .value { font-size: 18px; font-weight: 900; margin-top: 6px; color: #0f172a; }
-                                                .hsn-badge { display: inline-block; background: #eff6ff; color: #2563eb; padding: 8px 20px; border-radius: 99px; font-size: 14px; font-weight: 900; border: 1px solid #dbeafe; }
-                                                .confidence { font-size: 12px; font-weight: 700; color: #10b981; margin-top: 10px; }
-                                            </style>
-                                        </head>
-                                        <body onload="window.print()">
-                                            <div class="header">
-                                                <h1 style="margin:0; font-size: 28px; font-weight: 900;">HSN Intelligence Audit</h1>
-                                                <p style="margin:8px 0 0 0; color:#64748b; font-weight: 600;">Product Reference: ${item.product}</p>
-                                            </div>
-                                            <div class="card">
-                                                <div class="label">Assigned HSN Code</div>
-                                                <div style="margin-top:10px;"><span class="hsn-badge">${item.hsn_code}</span></div>
-                                                <div class="confidence">AI Confidence Level: ${item.confidence.toFixed(1)}%</div>
-                                            </div>
-                                            <div class="card">
-                                                <div class="label">Shipment Attribution</div>
-                                                <div class="value">${item.shipment_code}</div>
-                                            </div>
-                                            <div class="card">
-                                                <div class="label">Classification Model</div>
-                                                <div class="value">${item.model_version}</div>
-                                            </div>
-                                            <div style="margin-top: 50px; border-top: 1px solid #e2e8f0; pt-20px; text-align: center; font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em;">
-                                                SHNOOR AI CLASSIFICATION ENGINE • VERIFIED AUDIT
-                                            </div>
-                                        </body>
-                                    </html>
-                                `);
-                                win.document.close();
-                              }}
+                              onClick={() => setSelectedAudit(item)}
                               className="p-1.5 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 rounded-md transition-all shadow-sm group"
-                              title="Download HSN Audit"
+                              title="View HSN Audit"
                             >
                               <Printer size={14} className="group-hover:scale-110 transition-transform" />
-                            </button>
-                            <button className="p-1.5 text-slate-300 hover:text-blue-600 bg-white border border-slate-100 rounded-md hover:border-blue-200 transition-all">
-                              <ArrowRight size={14} />
                             </button>
                           </div>
                         </td>

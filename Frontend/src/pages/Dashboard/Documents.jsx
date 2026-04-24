@@ -28,6 +28,26 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+const Dropdown = ({ title, icon: Icon, color, children, defaultOpen = false }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={`rounded-2xl border overflow-hidden transition-all ${open ? `border-${color}-200 bg-${color}-50/30` : 'border-slate-100 bg-white'}`}>
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-4 text-left group">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl ${open ? `bg-${color}-100 text-${color}-600` : 'bg-slate-100 text-slate-400'}`}>
+            <Icon size={15} />
+          </div>
+          <span className="text-sm font-black text-slate-800">{title}</span>
+        </div>
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${open ? 'rotate-180 bg-slate-200' : 'bg-slate-100'}`}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+        </div>
+      </button>
+      {open && <div className="px-5 pb-5 space-y-3">{children}</div>}
+    </div>
+  );
+};
+
 const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
   const [docDetail, setDocDetail] = useState(null);
   const [error, setError] = useState(null);
@@ -57,247 +77,254 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
 
   if (!isOpen) return null;
 
+  const ex = docDetail?.extracted_data || {};
+  const isDone = docDetail?.status === 'Completed';
+  const isFailed = ['Failed', 'Error', 'Failed Validation', 'Processing Error'].includes(docDetail?.status);
+
   const steps = [
-    { id: 'ocr', label: 'AI OCR Extraction', isDone: !!(docDetail?.extracted_data?.product_name || docDetail?.extracted_data?.shipment_code) },
-    { id: 'ship', label: 'Shipment Record Created', isDone: !!docDetail?.shipment_id },
-    { id: 'hsn', label: 'HSN Classification', isDone: !!docDetail?.extracted_data?.hsn_result },
-    { id: 'duty', label: 'Duty & Tax Calculated', isDone: !!docDetail?.extracted_data?.duty_result },
-    { id: 'risk', label: 'Risk Assessment Analyzed', isDone: !!docDetail?.extracted_data?.risk_result },
+    { id: 'ocr',  label: 'AI OCR Extraction',       isDone: !!(ex.product_name || ex.shipment_code) },
+    { id: 'ship', label: 'Shipment Record Created',  isDone: !!docDetail?.shipment_id },
+    { id: 'hsn',  label: 'HSN Classification',       isDone: !!ex.hsn_result },
+    { id: 'duty', label: 'Duty & Tax Calculated',    isDone: !!ex.duty_result },
+    { id: 'risk', label: 'Risk Assessment Analyzed', isDone: !!ex.risk_result },
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-white/20 overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-blue-600">
-              <Sparkles size={20} className="animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">AI Intelligence Engine</span>
-            </div>
-            {docDetail?.status === 'Completed' && (
-              <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Processing Complete</span>
-            )}
+    <div className="min-h-screen bg-slate-50 animate-in fade-in duration-300">
+      {/* Sticky Top Bar */}
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-50 rounded-xl">
+            <Sparkles size={18} className="text-blue-600 animate-pulse" />
           </div>
-
-          <div className="space-y-1">
-            <h2 className="text-2xl font-black text-slate-800 leading-tight">Analyzing Consignment Data...</h2>
-            <p className="text-sm text-slate-400 font-medium">Extracting intelligence from your uploaded document.</p>
-          </div>
-
-          {/* Timeline */}
-          <div className="relative space-y-6 py-4">
-            {/* Progress Line */}
-            <div className="absolute left-[13px] top-8 bottom-8 w-0.5 bg-slate-100" />
-
-            {steps.map((step, i) => (
-              <div key={step.id} className="relative flex items-center gap-4 group">
-                <div className={`z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-500 ${step.isDone
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
-                    : i === steps.findIndex(s => !s.isDone)
-                      ? 'bg-blue-600 text-white ring-4 ring-blue-50 animate-pulse'
-                      : 'bg-slate-100 text-slate-300'
-                  }`}>
-                  {step.isDone ? <CheckCircle2 size={14} /> : i === steps.findIndex(s => !s.isDone) ? <Zap size={14} /> : <div className="w-1.5 h-1.5 bg-current rounded-full" />}
-                </div>
-                <span className={`text-sm font-bold transition-colors duration-500 ${step.isDone ? 'text-slate-800' : 'text-slate-400'}`}>
-                  {step.label}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-4 flex flex-col gap-3">
-            {docDetail?.status === 'Completed' && (
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 overflow-hidden">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Extracted JSON Data</span>
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([JSON.stringify(docDetail?.extracted_data, null, 2)], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `analysis_${docId}.json`;
-                      a.click();
-                    }}
-                    className="text-[9px] font-bold text-blue-600 hover:underline"
-                  >
-                    Export JSON
-                  </button>
-                </div>
-                <pre className="text-[10px] font-mono text-slate-600 bg-white p-3 rounded-lg border border-slate-100 overflow-x-auto max-h-40">
-                  {JSON.stringify(docDetail?.extracted_data, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            {/* REFINED INTELLIGENCE SIGNALS */}
-            <div className="grid grid-cols-4 gap-2 py-4">
-              {[
-                { id: 'cla', label: 'Type', active: !!docDetail?.doc_type, icon: FileStack, color: 'blue' },
-                { id: 'hsn', label: 'HSN', active: !!docDetail?.extracted_data?.hsn_result, icon: Zap, color: 'amber' },
-                { id: 'tax', label: 'Duty', active: !!docDetail?.extracted_data?.duty_result, icon: DollarSign, color: 'emerald' },
-                { id: 'risk', label: 'Risk', active: !!docDetail?.extracted_data?.risk_result, icon: ShieldCheck, color: 'rose' }
-              ].map((s) => (
-                <div key={s.id} className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all duration-700 ${s.active
-                    ? `bg-${s.color}-50 border-${s.color}-200 text-${s.color}-600 scale-105 shadow-sm`
-                    : 'bg-slate-50 border-slate-100 text-slate-300'
-                  }`}>
-                  <s.icon size={16} className={s.active ? 'animate-bounce-subtle' : ''} />
-                  <span className="text-[8px] font-black uppercase tracking-widest">{s.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {(docDetail?.status === 'Completed' || docDetail?.extracted_data?.hsn_result) ? (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                {/* ULTRA PREMIUM INTELLIGENCE CARD */}
-                <div className="relative group overflow-hidden">
-                  {/* Background Glow */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-10 group-hover:opacity-20 transition-all duration-500" />
-
-                  <div className="relative bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-2xl shadow-blue-900/10">
-                    {/* Header Section */}
-                    <div className="bg-slate-900 px-5 py-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/20 rounded-xl backdrop-blur-md">
-                          <Brain size={18} className="text-blue-400 animate-pulse" />
-                        </div>
-                        <div>
-                          <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-none mb-1">AI Intelligence Hub</h3>
-                          <p className="text-[8px] font-bold text-blue-200/60 uppercase tracking-widest">Reconciliation Complete</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] font-black text-white bg-white/10 px-2.5 py-1 rounded-full uppercase tracking-widest border border-white/5">
-                          {docDetail?.doc_type}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Content Grid */}
-                    <div className="p-6 grid grid-cols-2 gap-y-6 gap-x-8 bg-gradient-to-b from-white to-slate-50/50">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                          <Box size={10} className="text-blue-500" /> Consignment
-                        </p>
-                        <p className="text-sm font-black text-slate-900 tracking-tight leading-tight truncate">{docDetail?.extracted_data?.product_name}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                          <Zap size={10} className="text-amber-500" /> HSN Index
-                        </p>
-                        <p className="text-sm font-black text-slate-900 tracking-tight leading-tight">{docDetail?.extracted_data?.hsn_code}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                          <Globe size={10} className="text-indigo-500" /> Origin Point
-                        </p>
-                        <p className="text-sm font-black text-slate-900 tracking-tight leading-tight">{docDetail?.extracted_data?.country}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                          <DollarSign size={10} className="text-emerald-500" /> Duty Liability
-                        </p>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-sm font-black text-emerald-600">{docDetail?.extracted_data?.currency}</span>
-                          <span className="text-lg font-black text-slate-900">{docDetail?.extracted_data?.duty_result?.total_cost}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Area */}
-                    <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex flex-col gap-2">
-                      <button
-                        onClick={() => {
-                          const win = window.open('', '_blank');
-                          win.document.write(`
-                                    <html>
-                                        <head>
-                                            <title>AI Intelligence Report - ${docDetail?.filename}</title>
-                                            <style>
-                                                body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
-                                                .header { border-bottom: 3px solid #0f172a; padding-bottom: 25px; margin-bottom: 40px; }
-                                                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-                                                .card { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
-                                                .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-                                                .value { font-size: 16px; font-weight: 900; margin-top: 6px; color: #0f172a; }
-                                            </style>
-                                        </head>
-                                        <body onload="window.print()">
-                                            <div class="header">
-                                                <h1 style="margin:0; font-size: 32px; font-weight: 900;">Intelligence Audit Report</h1>
-                                                <p style="margin:8px 0 0 0; color:#64748b; font-weight: 600;">Verified Document: ${docDetail?.filename} • ${docDetail?.doc_type}</p>
-                                            </div>
-                                            <div class="grid">
-                                                <div class="card"><div class="label">Product Consignment</div><div class="value">${docDetail?.extracted_data?.product_name}</div></div>
-                                                <div class="card"><div class="label">Harmonized System (HSN)</div><div class="value">${docDetail?.extracted_data?.hsn_code}</div></div>
-                                                <div class="card"><div class="label">Total Duty Liability</div><div class="value">${docDetail?.extracted_data?.currency} ${docDetail?.extracted_data?.duty_result?.total_cost}</div></div>
-                                                <div class="card"><div class="label">Origin / Destination</div><div class="value">${docDetail?.extracted_data?.country} → ${docDetail?.extracted_data?.destination_country}</div></div>
-                                            </div>
-                                            <div style="margin-top: 50px; border-radius: 12px; background: #0f172a; color: white; padding: 30px;">
-                                                <p style="margin:0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.6;">AI Risk Compliance Result</p>
-                                                <h2 style="margin: 10px 0; font-size: 24px; font-weight: 900; color: #3b82f6;">${docDetail?.extracted_data?.risk_result?.risk_level} Risk Level</h2>
-                                                <p style="margin:0; font-size: 13px; font-weight: 500; opacity: 0.8;">${docDetail?.extracted_data?.risk_result?.reason}</p>
-                                            </div>
-                                        </body>
-                                    </html>
-                                `);
-                          win.document.close();
-                        }}
-                        className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 group/btn"
-                      >
-                        <Printer size={14} className="group-hover/btn:scale-110 transition-transform" />
-                        Download Intelligence Audit (PDF)
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => navigate(`/dashboard/shipments`)}
-                  className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 group"
-                >
-                  View in Shipment Ledger
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            ) : ['Failed', 'Error', 'Failed Validation', 'Processing Error'].includes(docDetail?.status) ? (
-              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6 text-center space-y-4">
-                <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-                  <X size={24} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-rose-900 uppercase tracking-widest">Analysis Failed</h3>
-                  <p className="text-xs text-rose-600 mt-1 font-medium">
-                    {docDetail?.extracted_data?.error || "We encountered an unexpected issue while analyzing your document."}
-                  </p>
-                </div>
-                <button onClick={onFinish} className="w-full bg-rose-600 text-white py-3 rounded-xl font-bold text-xs hover:bg-rose-700 transition-all">
-                  Dismiss & Retry
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 w-full">
-                {docDetail?.shipment_id && (
-                  <button
-                    onClick={() => navigate(`/dashboard/shipments`)}
-                    className="w-full bg-blue-50 text-blue-600 py-3 rounded-xl font-bold text-xs hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Box size={14} />
-                    Shipment Created - View Record
-                  </button>
-                )}
-                <div className="flex flex-col items-center gap-2">
-                  <Loader2 className="animate-spin text-blue-600" size={24} />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parsing Logistics Schema...</p>
-                </div>
-              </div>
-            )}
-
-            <button onClick={onFinish} className="text-xs font-bold text-slate-400 hover:text-slate-600 py-2">Close & Continue in Background</button>
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 block">AI Intelligence Engine</span>
+            <h2 className="text-lg font-black text-slate-900 leading-none">
+              {isDone ? 'Analysis Complete' : isFailed ? 'Analysis Failed' : 'Analyzing Document...'}
+            </h2>
           </div>
         </div>
+        <div className="flex items-center gap-3">
+          {isDone && (
+            <button
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(ex, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `shnoor_extracted_${docId}.json`; a.click();
+              }}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all flex items-center gap-2"
+            >
+              <Download size={14} /> Download Extracted Data
+            </button>
+          )}
+          {isDone && (
+            <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+              Completed
+            </span>
+          )}
+          <button
+            onClick={onFinish}
+            className="w-9 h-9 flex items-center justify-center bg-slate-100 hover:bg-rose-100 hover:text-rose-600 text-slate-500 rounded-xl transition-all"
+            title="Back to Documents"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+
+        {/* File Info */}
+        {docDetail && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
+            <div className="p-3 bg-slate-900 text-white rounded-2xl shrink-0">
+              <FileText size={22} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900 truncate">{docDetail.filename || `Document #${docId}`}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{docDetail.doc_type || 'Detecting type...'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Progress Timeline */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5">Processing Pipeline</p>
+          <div className="relative space-y-5">
+            <div className="absolute left-[13px] top-5 bottom-5 w-0.5 bg-slate-100" />
+            {steps.map((step, i) => {
+              const isActive = i === steps.findIndex(s => !s.isDone);
+              return (
+                <div key={step.id} className="relative flex items-center gap-4">
+                  <div className={`z-10 w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-500 ${
+                    step.isDone ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
+                    : isActive  ? 'bg-blue-600 text-white ring-4 ring-blue-50 animate-pulse'
+                    : 'bg-slate-100 text-slate-300'
+                  }`}>
+                    {step.isDone ? <CheckCircle2 size={13} /> : isActive ? <Zap size={13} /> : <div className="w-1.5 h-1.5 bg-current rounded-full" />}
+                  </div>
+                  <span className={`text-sm font-bold transition-colors ${step.isDone ? 'text-slate-900' : isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                    {step.label}
+                  </span>
+                  {isActive && !isFailed && <Loader2 size={14} className="animate-spin text-blue-400 ml-auto" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Error State */}
+        {isFailed && (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center space-y-3">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+              <AlertCircle size={24} />
+            </div>
+            <h3 className="text-sm font-black text-rose-900 uppercase tracking-widest">Analysis Failed</h3>
+            <p className="text-xs text-rose-600 font-medium">{ex.error || 'Unexpected issue during processing.'}</p>
+            <button onClick={onFinish} className="w-full bg-rose-600 text-white py-3 rounded-xl font-bold text-xs hover:bg-rose-700 transition-all">
+              Dismiss & Retry
+            </button>
+          </div>
+        )}
+
+        {/* Dropdown Intelligence Sections */}
+        {isDone && (
+          <div className="space-y-3">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Extracted Intelligence</p>
+
+            {/* Consignment Details */}
+            <Dropdown title="Consignment Details" icon={Box} color="blue" defaultOpen={true}>
+              {[
+                { label: 'Product Name',   value: ex.product_name },
+                { label: 'Shipment Code',  value: ex.shipment_code },
+                { label: 'Quantity',       value: ex.quantity },
+                { label: 'Unit',           value: ex.unit },
+                { label: 'Origin Country', value: ex.country },
+                { label: 'Destination',    value: ex.destination_country },
+              ].map(row => row.value && (
+                <div key={row.label} className="flex justify-between items-start py-2 border-b border-slate-100 last:border-0">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{row.label}</span>
+                  <span className="text-xs font-black text-slate-900 text-right max-w-[60%]">{row.value}</span>
+                </div>
+              ))}
+            </Dropdown>
+
+            {/* HSN Classification */}
+            {ex.hsn_result && (
+              <Dropdown title="HSN Classification" icon={Zap} color="amber">
+                {[
+                  { label: 'HSN Code',       value: ex.hsn_code || ex.hsn_result?.hsn_code },
+                  { label: 'Description',    value: ex.hsn_result?.description },
+                  { label: 'Confidence',     value: ex.hsn_result?.confidence ? `${(ex.hsn_result.confidence * 100).toFixed(1)}%` : null },
+                  { label: 'Model Version',  value: ex.hsn_result?.model_version },
+                ].map(row => row.value && (
+                  <div key={row.label} className="flex justify-between items-start py-2 border-b border-slate-100 last:border-0">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{row.label}</span>
+                    <span className="text-xs font-black text-slate-900 text-right max-w-[60%]">{row.value}</span>
+                  </div>
+                ))}
+              </Dropdown>
+            )}
+
+            {/* Duty & Tax */}
+            {ex.duty_result && (
+              <Dropdown title="Duty & Tax Calculation" icon={DollarSign} color="emerald">
+                {[
+                  { label: 'Total Cost',       value: ex.duty_result?.total_cost ? `${ex.currency || ''} ${ex.duty_result.total_cost}` : null },
+                  { label: 'Basic Duty',       value: ex.duty_result?.basic_duty },
+                  { label: 'IGST',             value: ex.duty_result?.igst },
+                  { label: 'CESS',             value: ex.duty_result?.cess },
+                  { label: 'Exchange Rate',    value: ex.duty_result?.exchange_rate },
+                  { label: 'CIF Value',        value: ex.duty_result?.cif_value },
+                ].map(row => row.value && (
+                  <div key={row.label} className="flex justify-between items-start py-2 border-b border-slate-100 last:border-0">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{row.label}</span>
+                    <span className="text-xs font-black text-slate-900 text-right max-w-[60%]">{String(row.value)}</span>
+                  </div>
+                ))}
+              </Dropdown>
+            )}
+
+            {/* Risk Assessment */}
+            {ex.risk_result && (
+              <Dropdown title="Risk Assessment" icon={ShieldCheck} color="rose">
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-2 ${
+                  ex.risk_result?.risk_level === 'Low' ? 'bg-emerald-100 text-emerald-700'
+                  : ex.risk_result?.risk_level === 'High' ? 'bg-rose-100 text-rose-700'
+                  : 'bg-amber-100 text-amber-700'
+                }`}>
+                  <ShieldCheck size={12} /> {ex.risk_result?.risk_level} Risk
+                </div>
+                {[
+                  { label: 'Risk Score',  value: ex.risk_result?.risk_score },
+                  { label: 'Reason',      value: ex.risk_result?.reason },
+                  { label: 'Flags',       value: Array.isArray(ex.risk_result?.flags) ? ex.risk_result.flags.join(', ') : ex.risk_result?.flags },
+                ].map(row => row.value && (
+                  <div key={row.label} className="py-2 border-b border-slate-100 last:border-0">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{row.label}</span>
+                    <span className="text-xs font-medium text-slate-700 leading-relaxed">{String(row.value)}</span>
+                  </div>
+                ))}
+              </Dropdown>
+            )}
+
+            {/* Raw JSON */}
+            <Dropdown title="Raw Extracted Data (JSON)" icon={FileJson} color="slate">
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={() => {
+                    const blob = new Blob([JSON.stringify(ex, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `analysis_${docId}.json`; a.click();
+                  }}
+                  className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <Download size={11} /> Export JSON
+                </button>
+              </div>
+              <pre className="text-[10px] font-mono text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 overflow-x-auto max-h-52 whitespace-pre-wrap">
+                {JSON.stringify(ex, null, 2)}
+              </pre>
+            </Dropdown>
+
+            {/* Actions */}
+            <div className="pt-2 space-y-3">
+              <button
+                onClick={() => navigate('/dashboard/shipments')}
+                className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 group"
+              >
+                View in Shipment Ledger
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button
+                onClick={onFinish}
+                className="w-full text-xs font-bold text-slate-400 hover:text-slate-600 py-2 transition-colors"
+              >
+                ← Back to Document Repository
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Still processing */}
+        {!isDone && !isFailed && (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <Loader2 className="animate-spin text-blue-600" size={28} />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parsing Logistics Schema...</p>
+            {docDetail?.shipment_id && (
+              <button
+                onClick={() => navigate('/dashboard/shipments')}
+                className="mt-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+              >
+                <Box size={13} /> Shipment Created — View Record
+              </button>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );
@@ -409,13 +436,20 @@ const Documents = () => {
     return matchSearch && matchType;
   });
 
+  if (isAnalysisOpen) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+        <AnalysisTimelineModal
+          isOpen={isAnalysisOpen}
+          docId={activeAnalysisId}
+          onFinish={() => setIsAnalysisOpen(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <AnalysisTimelineModal
-        isOpen={isAnalysisOpen}
-        docId={activeAnalysisId}
-        onFinish={() => setIsAnalysisOpen(false)}
-      />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -573,44 +607,11 @@ const Documents = () => {
                         {doc.status === 'Completed' && (
                           <button
                             onClick={() => {
-                              // Re-use the premium audit report template
-                              const win = window.open('', '_blank');
-                              win.document.write(`
-                                  <html>
-                                      <head>
-                                          <title>AI Intelligence Report - ${doc.id}</title>
-                                          <style>
-                                              body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
-                                              .header { border-bottom: 3px solid #0f172a; padding-bottom: 25px; margin-bottom: 40px; }
-                                              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-                                              .card { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
-                                              .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-                                              .value { font-size: 16px; font-weight: 900; margin-top: 6px; color: #0f172a; }
-                                          </style>
-                                      </head>
-                                      <body onload="window.print()">
-                                          <div class="header">
-                                              <h1 style="margin:0; font-size: 32px; font-weight: 900;">Intelligence Audit Report</h1>
-                                              <p style="margin:8px 0 0 0; color:#64748b; font-weight: 600;">Verified Document ID: ${doc.id} • ${doc.doc_type}</p>
-                                          </div>
-                                          <div class="grid">
-                                              <div class="card"><div class="label">Product Consignment</div><div class="value">${doc.extracted_data?.product_name || 'N/A'}</div></div>
-                                              <div class="card"><div class="label">Harmonized System (HSN)</div><div class="value">${doc.extracted_data?.hsn_code || 'N/A'}</div></div>
-                                              <div class="card"><div class="label">Total Duty Liability</div><div class="value">${doc.extracted_data?.currency || 'INR'} ${doc.extracted_data?.duty_result?.total_cost || '0'}</div></div>
-                                              <div class="card"><div class="label">Origin / Destination</div><div class="value">${doc.extracted_data?.country || 'N/A'} → ${doc.extracted_data?.destination_country || 'N/A'}</div></div>
-                                          </div>
-                                          <div style="margin-top: 50px; border-radius: 12px; background: #0f172a; color: white; padding: 30px;">
-                                              <p style="margin:0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.6;">AI Risk Compliance Result</p>
-                                              <h2 style="margin: 10px 0; font-size: 24px; font-weight: 900; color: #3b82f6;">${doc.extracted_data?.risk_result?.risk_level || 'Unknown'} Risk Level</h2>
-                                              <p style="margin:0; font-size: 13px; font-weight: 500; opacity: 0.8;">${doc.extracted_data?.risk_result?.reason || 'Compliance analysis completed.'}</p>
-                                          </div>
-                                      </body>
-                                  </html>
-                              `);
-                              win.document.close();
+                              setActiveAnalysisId(doc.id);
+                              setIsAnalysisOpen(true);
                             }}
                             className="p-1.5 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 rounded-md transition-all tooltip"
-                            title="Download Extracted Intelligence"
+                            title="View AI Intelligence Report"
                           >
                             <Printer size={16} />
                           </button>

@@ -16,7 +16,9 @@ import {
   DollarSign,
   Database,
   Brain,
-  X
+  X,
+  Download,
+  Printer
 } from 'lucide-react';
 
 const Modal = ({ isOpen, onClose, children, title }) => {
@@ -42,8 +44,9 @@ const Shipments = () => {
   const [skip, setSkip] = useState(0);
   const [limit] = useState(20);
   
-  // Modal State
+  // Modal & Detail State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     product_name: '',
@@ -105,6 +108,91 @@ const Shipments = () => {
   const nextPage = () => setSkip(prev => prev + limit);
   const prevPage = () => setSkip(prev => Math.max(0, prev - limit));
 
+  if (selectedShipment) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500 pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+           <div className="flex items-center gap-4">
+              <div className="p-4 bg-blue-600 text-white rounded-3xl shadow-2xl shadow-blue-200">
+                <Brain size={32} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Shipment Intelligence</h2>
+                <p className="text-sm font-medium text-slate-400">Audit Reference: {selectedShipment.shipment_code}</p>
+              </div>
+           </div>
+           <button 
+             onClick={() => setSelectedShipment(null)}
+             className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200"
+           >
+             <ChevronLeft size={16} />
+             Back to Ledger
+           </button>
+        </div>
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-2xl overflow-hidden max-w-2xl mx-auto animate-in zoom-in-95 duration-700">
+           {/* Header */}
+           <div className="bg-slate-900 p-8 text-white">
+              <div className="flex justify-between items-start mb-8">
+                 <span className="px-4 py-1.5 bg-blue-500 text-[10px] font-black uppercase tracking-[0.2em] rounded-full">Intelligence Verified</span>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Audit Date: {new Date().toLocaleDateString()}</p>
+              </div>
+              <h3 className="text-4xl font-black leading-tight mb-2">Transit Audit Report</h3>
+              <p className="text-blue-200/60 font-medium text-sm">Automated reconciliation and regulatory compliance check.</p>
+           </div>
+
+           {/* Content Grid */}
+           <div className="p-10 grid grid-cols-2 gap-10">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Box size={12} className="text-blue-500"/> Product Name</p>
+                <p className="text-lg font-black text-slate-900">{selectedShipment.product_name}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Truck size={12} className="text-amber-500"/> HSN Classification</p>
+                <p className="text-lg font-black text-slate-900">{selectedShipment.hsn_code}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><MapPin size={12} className="text-rose-500"/> Global Route</p>
+                <p className="text-lg font-black text-slate-900">{selectedShipment.origin_country} → {selectedShipment.destination_country}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><DollarSign size={12} className="text-emerald-500"/> Declared Value</p>
+                <p className="text-lg font-black text-slate-900">₹{parseFloat(selectedShipment.total_value).toLocaleString()}</p>
+              </div>
+           </div>
+
+           {/* Footer Action */}
+           <div className="p-8 bg-slate-50 border-t border-slate-100">
+              <button 
+                onClick={() => {
+                  const dataToDownload = {
+                    shipment_code: selectedShipment.shipment_code,
+                    product_name: selectedShipment.product_name,
+                    hsn_code: selectedShipment.hsn_code,
+                    origin: selectedShipment.origin_country,
+                    destination: selectedShipment.destination_country,
+                    value: selectedShipment.total_value,
+                    status: selectedShipment.status,
+                    audit_date: new Date().toLocaleDateString()
+                  };
+                  const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `shipment_${selectedShipment.shipment_code}.json`;
+                  a.click();
+                }}
+                className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-3"
+              >
+                <Download size={18} />
+                Download Shipment Data (JSON)
+              </button>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       {/* Header Section */}
@@ -124,29 +212,7 @@ const Shipments = () => {
                 className="w-full bg-white border border-slate-200 pl-10 pr-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
               />
            </div>
-           {shipments.length === 0 && !search && (
-             <button 
-               onClick={async () => {
-                 if(window.confirm("Seed database with 500 records from CSV dataset?")) {
-                   setIsLoading(true);
-                   try {
-                     const response = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
-                     const data = await response.json();
-                     alert(data.message || "Import initiated!");
-                     fetchShipments();
-                   } catch (err) {
-                     alert("Seed failed: " + err.message);
-                   } finally {
-                     setIsLoading(false);
-                   }
-                 }
-               }}
-               className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 active:scale-95 transition-all"
-             >
-               <Database size={16} />
-               Seed CSV Dataset
-             </button>
-           )}
+
            <button 
              onClick={() => setIsModalOpen(true)}
              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
@@ -246,7 +312,39 @@ const Shipments = () => {
               ) : shipments.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="py-20 text-center">
-                    <p className="text-sm font-medium text-slate-400 uppercase tracking-widest">No records found matching "{search}"</p>
+                    <div className="max-w-md mx-auto space-y-6 p-8 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-inner">
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-slate-100">
+                        <Database size={32} className="text-slate-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">Ledger is Empty</p>
+                        <p className="text-xs text-slate-400 font-medium leading-relaxed">No shipment records detected in the regulatory database. You can manually add a shipment or initialize the ledger with our training dataset.</p>
+                      </div>
+                      {!search && (
+                        <button 
+                          onClick={async () => {
+                            if(window.confirm("Initialize Ledger with 500 records from AI training dataset?")) {
+                              setIsLoading(true);
+                              try {
+                                const response = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
+                                const data = await response.json();
+                                alert(data.message || "Import initiated!");
+                                fetchShipments();
+                              } catch (err) {
+                                alert("Initialization failed: " + err.message);
+                              } finally {
+                                setIsLoading(false);
+                              }
+                            }
+                          }}
+                          className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3"
+                        >
+                          <Database size={18} />
+                          Initialize Dataset (500 records)
+                        </button>
+                      )}
+                      {search && <p className="text-sm font-medium text-slate-400 uppercase tracking-widest">No records found matching "{search}"</p>}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -302,52 +400,13 @@ const Shipments = () => {
                     </td>
                     <td className="px-6 py-5 text-right">
                        <div className="flex items-center justify-end gap-2">
-                         <button 
-                            onClick={() => {
-                                // Add logic to show intelligence card for this shipment
-                                const win = window.open('', '_blank');
-                                win.document.write(`
-                                    <html>
-                                        <head>
-                                            <title>Shipment Intelligence Hub - ${s.shipment_code}</title>
-                                            <style>
-                                                body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: #f8fafc; }
-                                                .card { background: white; padding: 40px; border-radius: 24px; border: 1px solid #e2e8f0; max-width: 600px; margin: 0 auto; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.1); }
-                                                .header { border-bottom: 2px solid #2563eb; padding-bottom: 25px; margin-bottom: 30px; }
-                                                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-                                                .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-                                                .value { font-size: 15px; font-weight: 900; margin-top: 6px; color: #0f172a; }
-                                                .badge { display: inline-block; background: #dbeafe; color: #2563eb; padding: 6px 16px; border-radius: 99px; font-size: 10px; font-weight: 900; text-transform: uppercase; margin-bottom: 15px; }
-                                                .btn { background: #0f172a; color: white; border: none; padding: 18px; border-radius: 14px; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; width: 100%; margin-top: 30px; cursor: pointer; transition: all 0.3s; }
-                                            </style>
-                                        </head>
-                                        <body onload="window.print()">
-                                            <div class="card">
-                                                <div class="header">
-                                                    <div class="badge">Shipment Intelligence Verified</div>
-                                                    <h2 style="margin:0; color:#0f172a; font-size: 24px;">Transit Audit Report</h2>
-                                                    <p style="margin:5px 0 0 0; font-size:12px; color:#64748b; font-weight: 600;">Reference: ${s.shipment_code}</p>
-                                                </div>
-                                                <div class="grid">
-                                                    <div class="item"><div class="label">Product Name</div><div class="value">${s.product_name}</div></div>
-                                                    <div class="item"><div class="label">HSN Classification</div><div class="value">${s.hsn_code}</div></div>
-                                                    <div class="item"><div class="label">Global Origin</div><div class="value">${s.origin_country}</div></div>
-                                                    <div class="item"><div class="label">Terminal Destination</div><div class="value">${s.destination_country}</div></div>
-                                                    <div class="item"><div class="label">Declared Financial Value</div><div class="value">₹${parseFloat(s.total_value).toLocaleString()}</div></div>
-                                                    <div class="item"><div class="label">Service Class</div><div class="value">Standard Logistics</div></div>
-                                                </div>
-                                                <button class="btn" onclick="window.print()">Download Premium Audit Report (PDF)</button>
-                                            </div>
-                                        </body>
-                                    </html>
-                                `);
-                                win.document.close();
-                            }}
-                            className="p-2.5 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 rounded-xl transition-all shadow-sm active:scale-90 flex items-center gap-2 px-3"
-                         >
-                           <Brain size={16} />
-                           <span className="text-[10px] font-black uppercase tracking-widest">Intelligence</span>
-                         </button>
+                          <button 
+                             onClick={() => setSelectedShipment(s)}
+                             className="p-2.5 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 rounded-xl transition-all shadow-sm active:scale-90 flex items-center gap-2 px-3"
+                          >
+                            <Brain size={16} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Intelligence</span>
+                          </button>
                        </div>
                     </td>
                   </tr>

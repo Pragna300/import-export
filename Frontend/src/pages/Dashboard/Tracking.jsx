@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import config from '../../config';
 import { 
   Search, 
@@ -14,23 +15,25 @@ import {
   ArrowRight,
   Loader2,
   Download,
-  Printer
+  Printer,
+  ChevronLeft
 } from 'lucide-react';
 
 const Tracking = () => {
-  const [code, setCode] = useState('');
+  const [searchParams] = useSearchParams();
+  const [code, setCode] = useState(searchParams.get('code') || '');
   const [trackingData, setTrackingData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleTrack = useCallback(async (e) => {
-    if (e) e.preventDefault();
-    if (!code) return;
+  const performTrack = useCallback(async (trackingCode) => {
+    if (!trackingCode) return;
     
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${config.API_BASE_URL}/tracking/${code}`);
+      const res = await fetch(`${config.API_BASE_URL}/tracking/${trackingCode}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setTrackingData(data);
@@ -40,7 +43,19 @@ const Tracking = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [code]);
+  }, []);
+
+  const handleTrack = (e) => {
+    if (e) e.preventDefault();
+    performTrack(code);
+  };
+
+  useEffect(() => {
+    const urlCode = searchParams.get('code');
+    if (urlCode) {
+      performTrack(urlCode);
+    }
+  }, [searchParams, performTrack]);
 
   useEffect(() => {
     let socket;
@@ -59,7 +74,7 @@ const Tracking = () => {
           if (update.shipment_id === trackingData.shipment.id || 
               update.shipment_code === trackingData.shipment.shipment_code) {
             // Trigger a refresh to get latest history and AI insight
-            handleTrack();
+            performTrack(trackingData.shipment.shipment_code);
           }
         } catch (e) {
           // It might be a simple text message
@@ -75,6 +90,84 @@ const Tracking = () => {
       if (socket) socket.close();
     };
   }, [trackingData?.shipment?.id, handleTrack]);
+
+  if (showReport && trackingData) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500 pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+           <div className="flex items-center gap-4">
+              <div className="p-4 bg-slate-900 text-white rounded-3xl shadow-2xl">
+                <Globe size={32} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Transit Intelligence Report</h2>
+                <p className="text-sm font-medium text-slate-400">Live Journey Audit for {trackingData.shipment.shipment_code}</p>
+              </div>
+           </div>
+           <button 
+             onClick={() => setShowReport(false)}
+             className="flex items-center gap-2 px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
+           >
+             <ChevronLeft size={16} />
+             Back to Journey Map
+           </button>
+        </div>
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-2xl overflow-hidden max-w-2xl mx-auto animate-in zoom-in-95 duration-700">
+           <div className="p-10 space-y-10">
+              <div className="flex justify-between items-start pb-6 border-b border-slate-100">
+                 <div>
+                   <h1 className="text-2xl font-black text-blue-600 mb-1">Shnoor Logistics Report</h1>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Tracking Intelligence</p>
+                 </div>
+                 <div className="text-right">
+                   <p className="text-xs font-black text-slate-900">Shipment ID: {trackingData.shipment.shipment_code}</p>
+                   <p className="text-[10px] font-bold text-slate-400">Generated: {new Date().toLocaleString()}</p>
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8">
+                 <div className="p-4 bg-slate-50 rounded-2xl">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Product Name</p>
+                    <p className="text-sm font-black text-slate-900">{trackingData.shipment.product_name}</p>
+                 </div>
+                 <div className="p-4 bg-slate-50 rounded-2xl">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Global Route</p>
+                    <p className="text-sm font-black text-slate-900">{trackingData.shipment.origin_country} → {trackingData.shipment.destination_country}</p>
+                 </div>
+              </div>
+
+              <div className="space-y-6">
+                 <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Verified Transit Milestones</h3>
+                 <div className="space-y-6 border-l-2 border-slate-50 pl-6 ml-2">
+                   {trackingData.history.map((t, i) => (
+                     <div key={i} className="relative">
+                       <div className="absolute -left-[31px] top-1 w-3 h-3 bg-blue-600 rounded-full ring-4 ring-white" />
+                       <p className="text-[9px] font-black text-slate-400 uppercase mb-1">{new Date(t.timestamp).toLocaleString()}</p>
+                       <p className="text-sm font-black text-slate-900">{t.status} • {t.location}</p>
+                       <p className="text-xs text-slate-500 font-medium italic mt-1">{t.remarks || "Checkpoint synchronization complete."}</p>
+                     </div>
+                   ))}
+                 </div>
+              </div>
+
+              <div className="bg-slate-900 p-8 rounded-3xl text-white">
+                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">AI Predictive Analytics</p>
+                 <p className="text-md font-bold leading-relaxed">{trackingData.ai_insight || "Predictive models are processing current transit vectors."}</p>
+              </div>
+
+              <button 
+                onClick={() => window.print()}
+                className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-2xl flex items-center justify-center gap-3"
+              >
+                <Printer size={18} />
+                Download Official Audit (PDF)
+              </button>
+           </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -236,65 +329,11 @@ const Tracking = () => {
             </div>
             
             <button 
-              onClick={() => {
-                const printContent = `
-                  <div style="font-family: sans-serif; padding: 40px; color: #334155;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
-                      <div>
-                        <h1 style="margin: 0; color: #2563eb;">Shnoor Logistics Report</h1>
-                        <p style="margin: 5px 0 0 0; color: #64748b;">Live Tracking Intelligence</p>
-                      </div>
-                      <div style="text-align: right;">
-                        <p style="margin: 0; font-weight: bold; font-size: 14px;">Shipment ID: ${trackingData.shipment.shipment_code}</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Generated: ${new Date().toLocaleString()}</p>
-                      </div>
-                    </div>
-                    
-                    <div style="background: #f8fafc; padding: 25px; border-radius: 16px; margin-bottom: 30px; border: 1px solid #e2e8f0;">
-                      <h3 style="margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #1e293b; font-weight: 900;">Consignment Summary</h3>
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Product Name</p><p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a;">${trackingData.shipment.product_name}</p></div>
-                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Global Route</p><p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a;">${trackingData.shipment.origin_country} → ${trackingData.shipment.destination_country}</p></div>
-                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Extracted Value</p><p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a;">₹${parseFloat(trackingData.shipment.total_value).toLocaleString()}</p></div>
-                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Live Status</p><p style="margin: 5px 0 0 0; font-weight: 900; color: #2563eb;">${trackingData.shipment.status}</p></div>
-                      </div>
-                    </div>
-
-                    <div style="margin-bottom: 30px;">
-                      <h3 style="margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #1e293b; font-weight: 900;">Verified Transit Milestones</h3>
-                      <div style="border-left: 2px solid #f1f5f9; padding-left: 25px; margin-left: 10px;">
-                        ${trackingData.history.map(t => `
-                          <div style="margin-bottom: 25px; position: relative;">
-                            <div style="position: absolute; left: -31px; top: 0; width: 10px; height: 10px; background: #2563eb; border-radius: 50%; box-shadow: 0 0 0 4px white;"></div>
-                            <p style="margin: 0; font-size: 10px; color: #94a3b8; font-weight: 900; text-transform: uppercase;">${new Date(t.timestamp).toLocaleString()}</p>
-                            <p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a; font-size: 14px;">${t.status} • ${t.location}</p>
-                            <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748b; font-style: italic;">${t.remarks || "Checkpoint synchronization complete."}</p>
-                          </div>
-                        `).join('')}
-                      </div>
-                    </div>
-
-                    <div style="background: #0f172a; padding: 30px; border-radius: 16px; color: white;">
-                      <div style="display: flex; items-center; gap: 10px; margin-bottom: 10px;">
-                        <span style="font-size: 10px; font-weight: 900; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.2em;">AI Predictive Analytics</span>
-                      </div>
-                      <p style="margin: 0; font-size: 16px; font-weight: 700; line-height: 1.6; color: #cbd5e1;">${trackingData.ai_insight || "Predictive models are processing current transit vectors."}</p>
-                    </div>
-
-                    <div style="margin-top: 60px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 25px; font-weight: bold; letter-spacing: 0.05em;">
-                      OFFICIAL TRANSIT DOCUMENT • GENERATED BY SHNOOR AI LOGISTICS ENGINE • BLOCKCHAIN VERIFIED
-                    </div>
-                  </div>
-                `;
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(printContent);
-                printWindow.document.close();
-                printWindow.print();
-              }}
+              onClick={() => setShowReport(true)}
               className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2 group"
             >
               <Download size={18} />
-              Download Tracking Report (PDF)
+              View Intelligence Report
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform opacity-50" />
             </button>
           </div>

@@ -11,7 +11,10 @@ import {
   Loader2,
   Shield,
   Brain,
-  Printer
+  Printer,
+  Download,
+  ChevronLeft,
+  X
 } from 'lucide-react';
 
 // --- SVG Gauge Chart ---
@@ -88,6 +91,7 @@ const DistBar = ({ dist }) => {
 const Risk = () => {
   const [riskData, setRiskData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedEntry, setSelectedEntry] = useState(null);
 
   useEffect(() => {
     const fetch_ = async () => {
@@ -118,6 +122,78 @@ const Risk = () => {
   const metrics = riskData?.metrics || {};
   const totalCount = dist.reduce((a, b) => a + b.count, 0);
   const highCount = dist.find(d => d.level === 'High')?.count || 0;
+
+  if (selectedEntry) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500 pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+           <div className="flex items-center gap-4">
+              <div className="p-4 bg-rose-600 text-white rounded-3xl shadow-2xl shadow-rose-200">
+                 <ShieldAlert size={32} />
+              </div>
+              <div>
+                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Compliance Intelligence</h2>
+                 <p className="text-sm font-medium text-slate-400">Audit Reference: {selectedEntry.shipment}</p>
+              </div>
+           </div>
+           <button 
+             onClick={() => setSelectedEntry(null)}
+             className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200"
+           >
+             <ChevronLeft size={16} />
+             Back to Matrix
+           </button>
+        </div>
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-2xl overflow-hidden max-w-2xl mx-auto animate-in zoom-in-95 duration-700">
+           <div className="bg-slate-900 p-8 text-white">
+              <div className="flex justify-between items-start mb-8">
+                 <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${
+                   selectedEntry.level === 'High' ? 'bg-rose-500' : selectedEntry.level === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                 }`}>
+                   {selectedEntry.level} CRITICALITY LEVEL
+                 </span>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Audit Date: {new Date().toLocaleDateString()}</p>
+              </div>
+              <h3 className="text-4xl font-black leading-tight mb-2">Compliance Audit Report</h3>
+              <p className="text-slate-400 font-medium text-sm">Automated risk profiling and regulatory liability verification.</p>
+           </div>
+
+           <div className="p-10 grid grid-cols-2 gap-10">
+              <div className="space-y-1">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Activity size={12} className="text-blue-500"/> Total Risk Score</p>
+                 <p className="text-lg font-black text-slate-900">{selectedEntry.score.toFixed(0)} / 100</p>
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Calculator size={12} className="text-rose-500"/> Duty Exposure</p>
+                 <p className="text-lg font-black text-slate-900">{selectedEntry.duty}</p>
+              </div>
+              <div className="col-span-2 space-y-2">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Brain size={12} className="text-blue-500"/> AI Risk Rationale</p>
+                 <p className="text-sm font-medium text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">{selectedEntry.reason}</p>
+              </div>
+           </div>
+
+           <div className="p-8 bg-slate-50 border-t border-slate-100">
+              <button 
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(selectedEntry, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `risk_audit_${selectedEntry.shipment}.json`;
+                  a.click();
+                }}
+                className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-3"
+              >
+                <Download size={18} />
+                Download Risk Audit (JSON)
+              </button>
+           </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
@@ -263,46 +339,9 @@ const Risk = () => {
                 <td className="px-6 py-3">
                   <div className="flex items-center gap-2">
                     <button 
-                        onClick={() => {
-                            const win = window.open('', '_blank');
-                            win.document.write(`
-                                <html>
-                                    <head>
-                                        <title>Compliance Audit Hub - ${item.shipment}</title>
-                                        <style>
-                                            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: #fef2f2; }
-                                            .card { background: white; padding: 40px; border-radius: 24px; border: 1px solid #fee2e2; max-width: 600px; margin: 0 auto; box-shadow: 0 25px 50px -12px rgb(239 68 68 / 0.1); }
-                                            .header { border-bottom: 2px solid #ef4444; padding-bottom: 25px; margin-bottom: 30px; }
-                                            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-                                            .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-                                            .value { font-size: 15px; font-weight: 900; margin-top: 6px; color: #0f172a; }
-                                            .risk-badge { display: inline-block; padding: 6px 16px; border-radius: 99px; font-size: 10px; font-weight: 900; background: #fee2e2; color: #ef4444; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.1em; }
-                                            .btn { background: #0f172a; color: white; border: none; padding: 18px; border-radius: 14px; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; width: 100%; margin-top: 30px; cursor: pointer; transition: all 0.3s; }
-                                        </style>
-                                    </head>
-                                    <body>
-                                        <div class="card">
-                                            <div class="header">
-                                                <div class="risk-badge">${item.level} CRITICALITY LEVEL</div>
-                                                <h2 style="margin:0; color:#0f172a; font-size: 24px;">Compliance Intelligence Report</h2>
-                                                <p style="margin:5px 0 0 0; font-size:12px; color:#64748b; font-weight: 600;">Shipment: ${item.shipment}</p>
-                                            </div>
-                                            <div class="grid">
-                                                <div class="item"><div class="label">Total Risk Score</div><div class="value">${item.score.toFixed(0)} / 100</div></div>
-                                                <div class="item"><div class="label">Duty Exposure</div><div class="value">${item.duty}</div></div>
-                                                <div class="item" style="grid-column: span 2;">
-                                                    <div class="label">AI Risk Rationale</div>
-                                                    <div class="value" style="font-weight: 600; line-height: 1.5; color: #475569; font-size: 13px;">${item.reason}</div>
-                                                </div>
-                                            </div>
-                                            <button class="btn" onclick="window.print()">Download Risk Audit Report (PDF)</button>
-                                        </div>
-                                    </body>
-                                </html>
-                            `);
-                            win.document.close();
-                        }}
+                        onClick={() => setSelectedEntry(item)}
                         className="p-2 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-100 rounded-lg transition-all"
+                        title="View Compliance Audit"
                     >
                       <Brain size={14} />
                     </button>
