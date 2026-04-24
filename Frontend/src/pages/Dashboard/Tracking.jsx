@@ -45,10 +45,10 @@ const Tracking = () => {
     }
   }, []);
 
-  const handleTrack = (e) => {
+  const handleTrack = useCallback((e) => {
     if (e) e.preventDefault();
     performTrack(code);
-  };
+  }, [code, performTrack]);
 
   useEffect(() => {
     const urlCode = searchParams.get('code');
@@ -69,15 +69,12 @@ const Tracking = () => {
 
       socket.onmessage = (event) => {
         try {
-          // If the server broadcasts a message, it might be an update for this shipment
           const update = JSON.parse(event.data);
           if (update.shipment_id === trackingData.shipment.id || 
               update.shipment_code === trackingData.shipment.shipment_code) {
-            // Trigger a refresh to get latest history and AI insight
             performTrack(trackingData.shipment.shipment_code);
           }
         } catch (e) {
-          // It might be a simple text message
           console.log("WS Message:", event.data);
         }
       };
@@ -89,7 +86,7 @@ const Tracking = () => {
     return () => {
       if (socket) socket.close();
     };
-  }, [trackingData?.shipment?.id, handleTrack]);
+  }, [trackingData?.shipment?.id, trackingData?.shipment?.shipment_code, performTrack]);
 
   if (showReport && trackingData) {
     return (
