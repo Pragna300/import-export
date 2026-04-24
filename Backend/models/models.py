@@ -109,6 +109,7 @@ class Duty(Base):
     other_charges = Column(Numeric)
     total_cost = Column(Numeric)
     currency = Column(String(10))
+    status = Column(String(50))
     calculated_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
     # Relationship back to Shipment

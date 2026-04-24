@@ -1,4 +1,5 @@
 import os
+import shutil
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 from fastapi import FastAPI, Depends
@@ -97,6 +98,17 @@ async def startup():
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            
+            # 🔄 AUTO-SYNC: Add missing columns if they don't exist
+            print("🔄 Synchronizing database schema...")
+            try:
+                await conn.execute(text("ALTER TABLE duties ADD COLUMN IF NOT EXISTS status VARCHAR(50);"))
+                await conn.execute(text("ALTER TABLE shipments ADD COLUMN IF NOT EXISTS created_by VARCHAR(100);"))
+                # Add doc_type to documents
+                await conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS doc_type VARCHAR(50);"))
+                print("✅ Database columns synchronized.")
+            except Exception as sync_err:
+                print(f"⚠️ Schema sync warning: {sync_err}")
 
         print("✅ Tables created successfully")
 

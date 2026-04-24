@@ -1,28 +1,34 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import torch
-import torch.nn.functional as F
-
-from models.models import HSNClassification, Shipment
+from models.models import Shipment, HSNClassification
+try:
+    import torch
+    import torch.nn.functional as F
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 from .model import HSNClassifierCNN
 from .preprocessing import tokenize_and_pad
 
 model = None
-word2idx = {}
-idx2hsn = {}
+word2idx = {"<pad>": 0, "<unk>": 1}
+idx2hsn = {i: str(i).zfill(2) + "0000" for i in range(1, 100)}
 
 
 def load_hsn_model():
-    global model, word2idx, idx2hsn
-    vocab_size = 20000
-    model = HSNClassifierCNN(vocab_size=vocab_size, embed_dim=300, num_classes=99)
-    model.eval()
-    word2idx = {"dummy": 1}
-    idx2hsn = {i: str(i).zfill(2) for i in range(99)}
-    word2idx = {"<pad>": 0, "<unk>": 1} # A more standard vocabulary
-    # The current model only predicts HSN Chapters (2-digits). We pad to create a valid 6-digit code.
-    idx2hsn = {i: str(i).zfill(2) + "0000" for i in range(1, 100)} # HSN Chapters are 1-99
+    global model
+    if not TORCH_AVAILABLE:
+        print("⚠️ PyTorch not found. Using fallback HSN logic.")
+        return
+        
+    try:
+        vocab_size = 20000
+        model = HSNClassifierCNN(vocab_size=vocab_size, embed_dim=300, num_classes=99)
+        model.eval()
+    except Exception as e:
+        print(f"⚠️ Error loading HSN model: {e}")
+        model = None
 
 
 from starlette.concurrency import run_in_threadpool
@@ -48,17 +54,33 @@ async def predict_hsn_code(db: AsyncSession, product_name: str) -> dict:
     return await run_in_threadpool(_sync_ml_predict, product_name)
 
 def _sync_ml_predict(product_name: str) -> dict:
-    tensor_input = tokenize_and_pad(product_name, word2idx)
-    with torch.no_grad():
-        logits = model(tensor_input)
-        probabilities = F.softmax(logits, dim=1)
-        confidence_score, predicted_idx = torch.max(probabilities, dim=1)
+    if model is None:
+        # 🚀 FAST FALLBACK: If ML model didn't load, use a safe default
+        return {
+            "hsn_code": "847130", # Default to computing machinery
+            "confidence_score": 50.0,
+            "model_version": "Fallback-Static",
+        }
+    
+    try:
+        tensor_input = tokenize_and_pad(product_name, word2idx)
+        with torch.no_grad():
+            logits = model(tensor_input)
+            probabilities = F.softmax(logits, dim=1)
+            confidence_score, predicted_idx = torch.max(probabilities, dim=1)
 
-    return {
-        "hsn_code": idx2hsn.get(predicted_idx.item(), "841400"), # Default to a 6-digit code for consistency
-        "confidence_score": round(confidence_score.item() * 100, 2),
-        "model_version": "CNN-v1.0",
-    }
+        return {
+            "hsn_code": idx2hsn.get(predicted_idx.item(), "841400"), 
+            "confidence_score": round(confidence_score.item() * 100, 2),
+            "model_version": "CNN-v1.0",
+        }
+    except Exception as e:
+        print(f"⚠️ ML Prediction Error: {e}")
+        return {
+            "hsn_code": "841400",
+            "confidence_score": 10.0,
+            "model_version": "Error-Fallback",
+        }
 
 
 async def save_hsn_classification(

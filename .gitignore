@@ -1,12 +1,22 @@
-# backend
+# Backend
 venv/
+.venv/
 __pycache__/
+*.pyc
 .env
+document_uploads/
 
-# frontend
+# Frontend
 node_modules/
 dist/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# common
+# Common/System
 .DS_Store
+Thumbs.db
 .vscode/
+.idea/
+.python-version

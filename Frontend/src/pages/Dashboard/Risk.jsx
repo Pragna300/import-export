@@ -9,7 +9,9 @@ import {
   Calculator,
   TrendingUp,
   Loader2,
-  Shield
+  Shield,
+  Brain,
+  Printer
 } from 'lucide-react';
 
 // --- SVG Gauge Chart ---
@@ -259,9 +261,52 @@ const Risk = () => {
                   <span className="text-sm font-black text-slate-900">{item.duty}</span>
                 </td>
                 <td className="px-6 py-3">
-                  <button className="p-2 text-slate-300 hover:text-blue-600 bg-white border border-slate-100 rounded-lg hover:border-blue-200 transition-all">
-                    <ArrowUpRight size={14} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => {
+                            const win = window.open('', '_blank');
+                            win.document.write(`
+                                <html>
+                                    <head>
+                                        <title>Compliance Audit Hub - ${item.shipment}</title>
+                                        <style>
+                                            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: #fef2f2; }
+                                            .card { background: white; padding: 40px; border-radius: 24px; border: 1px solid #fee2e2; max-width: 600px; margin: 0 auto; box-shadow: 0 25px 50px -12px rgb(239 68 68 / 0.1); }
+                                            .header { border-bottom: 2px solid #ef4444; padding-bottom: 25px; margin-bottom: 30px; }
+                                            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+                                            .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+                                            .value { font-size: 15px; font-weight: 900; margin-top: 6px; color: #0f172a; }
+                                            .risk-badge { display: inline-block; padding: 6px 16px; border-radius: 99px; font-size: 10px; font-weight: 900; background: #fee2e2; color: #ef4444; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.1em; }
+                                            .btn { background: #0f172a; color: white; border: none; padding: 18px; border-radius: 14px; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; width: 100%; margin-top: 30px; cursor: pointer; transition: all 0.3s; }
+                                        </style>
+                                    </head>
+                                    <body>
+                                        <div class="card">
+                                            <div class="header">
+                                                <div class="risk-badge">${item.level} CRITICALITY LEVEL</div>
+                                                <h2 style="margin:0; color:#0f172a; font-size: 24px;">Compliance Intelligence Report</h2>
+                                                <p style="margin:5px 0 0 0; font-size:12px; color:#64748b; font-weight: 600;">Shipment: ${item.shipment}</p>
+                                            </div>
+                                            <div class="grid">
+                                                <div class="item"><div class="label">Total Risk Score</div><div class="value">${item.score.toFixed(0)} / 100</div></div>
+                                                <div class="item"><div class="label">Duty Exposure</div><div class="value">${item.duty}</div></div>
+                                                <div class="item" style="grid-column: span 2;">
+                                                    <div class="label">AI Risk Rationale</div>
+                                                    <div class="value" style="font-weight: 600; line-height: 1.5; color: #475569; font-size: 13px;">${item.reason}</div>
+                                                </div>
+                                            </div>
+                                            <button class="btn" onclick="window.print()">Download Risk Audit Report (PDF)</button>
+                                        </div>
+                                    </body>
+                                </html>
+                            `);
+                            win.document.close();
+                        }}
+                        className="p-2 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-100 rounded-lg transition-all"
+                    >
+                      <Brain size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

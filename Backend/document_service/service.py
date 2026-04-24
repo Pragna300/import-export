@@ -60,13 +60,23 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
             print(f"📄 Processing Document #{doc_id}...")
             # 🚀 OPTIMIZATION: Extract text using threadpool (async-friendly)
             raw_text = await extract_text_from_file(file_path, file_ext)
+            
+            if not raw_text:
+                print(f"❌ OCR failed to extract any text for Document #{doc_id}")
+                document = await db.get(Document, doc_id)
+                if document:
+                    document.status = "Error"
+                    document.extracted_data = {"error": "OCR failed to extract text. Please ensure the file is readable and not empty."}
+                    await db.commit()
+                return
+
             print(f"✅ OCR Done. Extracted {len(raw_text)} chars.")
             
             # Update status to indicate OCR is done and AI analysis is starting
             document = await db.get(Document, doc_id)
             if document:
                 document.extracted_data = {"status": "Analyzing Content..."}
-                await db.commit() # Necessary to update status for frontend polling
+                await db.commit() 
 
             # 🚀 LLM Analysis (Async httpx call)
             structured_json = await process_invoice_with_llm(raw_text)
@@ -85,18 +95,24 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
             
             print(f"✅ AI Extraction successful for Document #{doc_id}")
 
-            extracted_data = ExtractedInvoiceData(**structured_json)
+            try:
+                extracted_data = ExtractedInvoiceData(**structured_json)
+            except Exception as e:
+                print(f"❌ Validation error for Document #{doc_id}: {e}")
+                document.status = "Failed Validation"
+                document.extracted_data = {"error": f"AI response format invalid: {str(e)}", "raw": structured_json}
+                await db.commit()
+                return
+
             # 🚀 NEW SHIPMENT DETECTION & CREATION
             shipment = None
             if extracted_data.shipment_code:
-                # Try to find existing shipment by code
                 from sqlalchemy import select
                 stmt = select(Shipment).where(Shipment.shipment_code == extracted_data.shipment_code)
                 res = await db.execute(stmt)
                 shipment = res.scalars().first()
             
             if not shipment:
-                # Create new one if not found or no code provided
                 shipment = Shipment(
                     shipment_code=extracted_data.shipment_code or f"SHN-{uuid.uuid4().hex[:8].upper()}",
                     product_name=extracted_data.product_name,
@@ -110,35 +126,34 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
                     status="Processing",
                 )
                 db.add(shipment)
-                await db.commit() # Commit immediately so the UI sees the shipment is created
-                await db.refresh(shipment)
-                await db.refresh(document)
+                await db.flush() 
             
             document.shipment_id = shipment.id
-            await db.commit() # Update document with linked shipment
-            await db.refresh(document)
             
-            # 1. HSN Classification (Direct Call)
-            prediction = await predict_hsn_code(db, extracted_data.product_name)
-            await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction, commit=True)
-            await db.refresh(document)
+            # 1. HSN Classification
+            print(f"🔍 [1/3] Classifying HSN for Document #{doc_id}...")
+            if extracted_data.hsn_code and len(str(extracted_data.hsn_code)) >= 2:
+                prediction = {
+                    "hsn_code": str(extracted_data.hsn_code),
+                    "confidence_score": 99.0,
+                    "model_version": "AI-Extracted"
+                }
+            else:
+                prediction = await predict_hsn_code(db, extracted_data.product_name)
+            
+            hsn_rec, _ = await save_hsn_classification(db, shipment.id, extracted_data.product_name, prediction, commit=False)
 
-            # 2. Duty Calculation (Direct Call)
+            # 2. Duty Calculation
+            print(f"💰 [2/3] Calculating Duty for Document #{doc_id}...")
             breakdown = await calculate_duty_breakdown(db, shipment, prediction["hsn_code"])
-            await save_duty_result(db, breakdown, commit=True)
-            await db.refresh(document)
+            duty_rec = await save_duty_result(db, breakdown, commit=False)
             
-            # 3. Risk Assessment (Direct Call)
-            # Re-fetch hsn and duty records to ensure they are fresh
-            from models.models import HSNClassification, Duty
-            hsn_rec = (await db.execute(select(HSNClassification).where(HSNClassification.shipment_id == shipment.id))).scalars().first()
-            duty_rec = (await db.execute(select(Duty).where(Duty.shipment_id == shipment.id))).scalars().first()
-            
+            # 3. Risk Assessment
+            print(f"🛡️ [3/3] Analyzing Risk for Document #{doc_id}...")
             risk_prediction = await assess_risk(db, shipment, hsn_rec, duty_rec)
-            await save_risk_assessment(db, risk_prediction, commit=True)
-            await db.refresh(document)
+            await save_risk_assessment(db, risk_prediction, commit=False)
             
-            # Final Document Update
+            document.doc_type = structured_json.get("doc_type", "Other")
             document.extracted_data = {
                 **structured_json,
                 "hsn_result": prediction,
@@ -148,8 +163,9 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
             document.status = "Completed"
             shipment.status = "Pending Review"
             
-            # 🚀 FINAL BATCH COMMIT
+            # 🚀 FINAL SINGLE BATCH COMMIT
             await db.commit()
+            print(f"🎉 SUCCESS: Document #{doc_id} fully processed and saved.")
 
         except ValidationError as exc:
             if document is not None:
@@ -164,8 +180,10 @@ async def background_process_invoice(file_path: str, file_ext: str, doc_id: int)
             else:
                 await db.rollback()
         finally:
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except:
-                    pass
+            # 🚀 KEEPING THE FILE so user can download it later from the dashboard
+            pass
+            # if os.path.exists(file_path):
+            #     try:
+            #         os.remove(file_path)
+            #     except:
+            #         pass

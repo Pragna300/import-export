@@ -5,7 +5,7 @@
   --color-brand-blue: #3b82f6;
   --color-brand-light: #f8fafc;
   --font-display: "Outfit", "Inter", sans-serif;
-  
+
   /* Refined, Mechanical Easing */
   --ease-premium: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out-back: cubic-bezier(0.175, 0.885, 0.32, 1.1);
@@ -15,22 +15,24 @@
   body {
     @apply font-sans bg-[#f8fafc] text-slate-900 antialiased scroll-smooth;
   }
-  html, body, #root {
+
+  html,
+  body,
+  #root {
     overflow-x: hidden;
     max-width: 100vw;
   }
 }
 
 @layer components {
+
   /* Subtle, Flat Glassmorphism */
   .glass-card {
     @apply bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-sm transition-all duration-300;
   }
 
   .btn-premium {
-    @apply relative overflow-hidden bg-slate-900 text-white px-7 py-3 rounded-xl font-bold text-sm
-           transition-all duration-300 hover:bg-slate-800
-           active:scale-[0.98] flex items-center justify-center gap-2;
+    @apply relative overflow-hidden bg-slate-900 text-white px-7 py-3 rounded-xl font-bold text-sm transition-all duration-300 hover:bg-slate-800 active:scale-[0.98] flex items-center justify-center gap-2;
   }
 
   /* Subdued Interaction Utilities */
@@ -45,9 +47,17 @@
 
 /* --- Subdued Animations --- */
 @keyframes shimmer-subtle {
-  0% { opacity: 0.1; }
-  50% { opacity: 0.3; }
-  100% { opacity: 0.1; }
+  0% {
+    opacity: 0.1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 0.1;
+  }
 }
 
 .animate-shimmer-subtle {
@@ -55,8 +65,15 @@
 }
 
 @keyframes breathe-subtle {
-  0%, 100% { box-shadow: 0 0 0px rgba(239, 68, 68, 0); }
-  50% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0px rgba(239, 68, 68, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  }
 }
 
 .animate-breathe-subtle {

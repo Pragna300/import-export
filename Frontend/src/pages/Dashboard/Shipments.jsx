@@ -6,7 +6,6 @@ import {
   Calendar, 
   Search, 
   Filter, 
-  ExternalLink,
   ChevronRight,
   ChevronLeft,
   ArrowRight,
@@ -16,6 +15,7 @@ import {
   FileText,
   DollarSign,
   Database,
+  Brain,
   X
 } from 'lucide-react';
 
@@ -124,27 +124,29 @@ const Shipments = () => {
                 className="w-full bg-white border border-slate-200 pl-10 pr-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
               />
            </div>
-           <button 
-             onClick={async () => {
-               if(window.confirm("Seed database with 500 records from CSV dataset?")) {
-                 setIsLoading(true);
-                 try {
-                   const response = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
-                   const data = await response.json();
-                   alert(data.message || "Import initiated!");
-                   fetchShipments();
-                 } catch (err) {
-                   alert("Seed failed: " + err.message);
-                 } finally {
-                   setIsLoading(false);
+           {shipments.length === 0 && !search && (
+             <button 
+               onClick={async () => {
+                 if(window.confirm("Seed database with 500 records from CSV dataset?")) {
+                   setIsLoading(true);
+                   try {
+                     const response = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
+                     const data = await response.json();
+                     alert(data.message || "Import initiated!");
+                     fetchShipments();
+                   } catch (err) {
+                     alert("Seed failed: " + err.message);
+                   } finally {
+                     setIsLoading(false);
+                   }
                  }
-               }
-             }}
-             className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 active:scale-95 transition-all"
-           >
-             <Database size={16} />
-             Seed CSV Dataset
-           </button>
+               }}
+               className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 active:scale-95 transition-all"
+             >
+               <Database size={16} />
+               Seed CSV Dataset
+             </button>
+           )}
            <button 
              onClick={() => setIsModalOpen(true)}
              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
@@ -178,7 +180,6 @@ const Shipments = () => {
 
       {/* Main Ledger Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
-        {/* ... table content remains same ... */}
         {/* Modal for Manual Entry */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create Manual Shipment Entry">
             <form onSubmit={handleCreateShipment} className="space-y-4">
@@ -300,9 +301,54 @@ const Shipments = () => {
                        </div>
                     </td>
                     <td className="px-6 py-5 text-right">
-                       <button className="p-2.5 text-slate-400 hover:text-blue-600 bg-white border border-slate-100 rounded-xl hover:border-blue-200 transition-all shadow-sm hover:shadow-md active:scale-90">
-                         <ExternalLink size={16} />
-                       </button>
+                       <div className="flex items-center justify-end gap-2">
+                         <button 
+                            onClick={() => {
+                                // Add logic to show intelligence card for this shipment
+                                const win = window.open('', '_blank');
+                                win.document.write(`
+                                    <html>
+                                        <head>
+                                            <title>Shipment Intelligence Hub - ${s.shipment_code}</title>
+                                            <style>
+                                                body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: #f8fafc; }
+                                                .card { background: white; padding: 40px; border-radius: 24px; border: 1px solid #e2e8f0; max-width: 600px; margin: 0 auto; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.1); }
+                                                .header { border-bottom: 2px solid #2563eb; padding-bottom: 25px; margin-bottom: 30px; }
+                                                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+                                                .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+                                                .value { font-size: 15px; font-weight: 900; margin-top: 6px; color: #0f172a; }
+                                                .badge { display: inline-block; background: #dbeafe; color: #2563eb; padding: 6px 16px; border-radius: 99px; font-size: 10px; font-weight: 900; text-transform: uppercase; margin-bottom: 15px; }
+                                                .btn { background: #0f172a; color: white; border: none; padding: 18px; border-radius: 14px; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; width: 100%; margin-top: 30px; cursor: pointer; transition: all 0.3s; }
+                                            </style>
+                                        </head>
+                                        <body onload="window.print()">
+                                            <div class="card">
+                                                <div class="header">
+                                                    <div class="badge">Shipment Intelligence Verified</div>
+                                                    <h2 style="margin:0; color:#0f172a; font-size: 24px;">Transit Audit Report</h2>
+                                                    <p style="margin:5px 0 0 0; font-size:12px; color:#64748b; font-weight: 600;">Reference: ${s.shipment_code}</p>
+                                                </div>
+                                                <div class="grid">
+                                                    <div class="item"><div class="label">Product Name</div><div class="value">${s.product_name}</div></div>
+                                                    <div class="item"><div class="label">HSN Classification</div><div class="value">${s.hsn_code}</div></div>
+                                                    <div class="item"><div class="label">Global Origin</div><div class="value">${s.origin_country}</div></div>
+                                                    <div class="item"><div class="label">Terminal Destination</div><div class="value">${s.destination_country}</div></div>
+                                                    <div class="item"><div class="label">Declared Financial Value</div><div class="value">₹${parseFloat(s.total_value).toLocaleString()}</div></div>
+                                                    <div class="item"><div class="label">Service Class</div><div class="value">Standard Logistics</div></div>
+                                                </div>
+                                                <button class="btn" onclick="window.print()">Download Premium Audit Report (PDF)</button>
+                                            </div>
+                                        </body>
+                                    </html>
+                                `);
+                                win.document.close();
+                            }}
+                            className="p-2.5 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 rounded-xl transition-all shadow-sm active:scale-90 flex items-center gap-2 px-3"
+                         >
+                           <Brain size={16} />
+                           <span className="text-[10px] font-black uppercase tracking-widest">Intelligence</span>
+                         </button>
+                       </div>
                     </td>
                   </tr>
                 ))

@@ -44,15 +44,15 @@ async def import_data():
 
         print(f"⏳ Syncing data to Accountant Dashboard...")
         
-        # CLEAR OLD DATA IN CORRECT ORDER TO AVOID FK ERRORS
-        print("🧹 Clearing old data for a clean import...")
-        await db.execute(text("DELETE FROM hsn_classifications"))
-        await db.execute(text("DELETE FROM duties"))
-        await db.execute(text("DELETE FROM risk_assessments"))
-        await db.execute(text("DELETE FROM shipment_tracking"))
-        await db.execute(text("DELETE FROM documents"))
-        await db.execute(text("DELETE FROM shipments"))
-        await db.commit()
+        # APPEND MODE: We no longer clear old data to allow merging with current records
+        print("📥 Appending CSV data to existing database records...")
+        # await db.execute(text("DELETE FROM hsn_classifications"))
+        # await db.execute(text("DELETE FROM duties"))
+        # await db.execute(text("DELETE FROM risk_assessments"))
+        # await db.execute(text("DELETE FROM shipment_tracking"))
+        # await db.execute(text("DELETE FROM documents"))
+        # await db.execute(text("DELETE FROM shipments"))
+        # await db.commit()
         
         success_count = 0
         error_count = 0
@@ -66,9 +66,17 @@ async def import_data():
                 except:
                     invoice_dt = datetime.datetime.now()
 
+                shipment_code = str(row.get('shipment_id', f"SHN-Bulk-{index}")).strip()
+                
+                # Check for duplicates
+                existing_res = await db.execute(select(Shipment).where(Shipment.shipment_code == shipment_code))
+                if existing_res.scalars().first():
+                    print(f"⏩ Skipping duplicate: {shipment_code}")
+                    continue
+
                 # 1. Create Shipment
                 shipment = Shipment(
-                    shipment_code=str(row.get('shipment_id', f"SHN-Bulk-{index}")).strip(),
+                    shipment_code=shipment_code,
                     product_name=str(row.get('product', 'Unknown Product')),
                     description=f"Auto-import from {str(row.get('vendor', 'Unknown Vendor'))}",
                     quantity=int(row.get('quantity', 1)) if str(row.get('quantity')).isdigit() else 1,

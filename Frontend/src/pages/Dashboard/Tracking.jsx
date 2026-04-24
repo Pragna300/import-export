@@ -12,7 +12,9 @@ import {
   Cpu, 
   Sparkles,
   ArrowRight,
-  Loader2
+  Loader2,
+  Download,
+  Printer
 } from 'lucide-react';
 
 const Tracking = () => {
@@ -237,48 +239,50 @@ const Tracking = () => {
               onClick={() => {
                 const printContent = `
                   <div style="font-family: sans-serif; padding: 40px; color: #334155;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
                       <div>
-                        <h1 style="margin: 0; color: #0f172a;">Shnoor Logistics Report</h1>
+                        <h1 style="margin: 0; color: #2563eb;">Shnoor Logistics Report</h1>
                         <p style="margin: 5px 0 0 0; color: #64748b;">Live Tracking Intelligence</p>
                       </div>
                       <div style="text-align: right;">
-                        <p style="margin: 0; font-weight: bold;">ID: ${trackingData.shipment.shipment_code}</p>
-                        <p style="margin: 5px 0 0 0;">Date: ${new Date().toLocaleDateString()}</p>
+                        <p style="margin: 0; font-weight: bold; font-size: 14px;">Shipment ID: ${trackingData.shipment.shipment_code}</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Generated: ${new Date().toLocaleString()}</p>
                       </div>
                     </div>
                     
-                    <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
-                      <h3 style="margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: #475569;">Consignment Details</h3>
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div><p style="margin: 0; font-size: 12px; color: #64748b;">Product</p><p style="margin: 5px 0 0 0; font-weight: bold;">${trackingData.shipment.product_name}</p></div>
-                        <div><p style="margin: 0; font-size: 12px; color: #64748b;">Route</p><p style="margin: 5px 0 0 0; font-weight: bold;">${trackingData.shipment.origin_country} → ${trackingData.shipment.destination_country}</p></div>
-                        <div><p style="margin: 0; font-size: 12px; color: #64748b;">Value</p><p style="margin: 5px 0 0 0; font-weight: bold;">₹${parseFloat(trackingData.shipment.total_value).toLocaleString()}</p></div>
-                        <div><p style="margin: 0; font-size: 12px; color: #64748b;">Current Status</p><p style="margin: 5px 0 0 0; font-weight: bold; color: #2563eb;">${trackingData.shipment.status}</p></div>
+                    <div style="background: #f8fafc; padding: 25px; border-radius: 16px; margin-bottom: 30px; border: 1px solid #e2e8f0;">
+                      <h3 style="margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #1e293b; font-weight: 900;">Consignment Summary</h3>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Product Name</p><p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a;">${trackingData.shipment.product_name}</p></div>
+                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Global Route</p><p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a;">${trackingData.shipment.origin_country} → ${trackingData.shipment.destination_country}</p></div>
+                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Extracted Value</p><p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a;">₹${parseFloat(trackingData.shipment.total_value).toLocaleString()}</p></div>
+                        <div><p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 900; text-transform: uppercase;">Live Status</p><p style="margin: 5px 0 0 0; font-weight: 900; color: #2563eb;">${trackingData.shipment.status}</p></div>
                       </div>
                     </div>
 
                     <div style="margin-bottom: 30px;">
-                      <h3 style="margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: #475569;">Journey Log</h3>
-                      <div style="border-left: 2px solid #f1f5f9; padding-left: 20px; margin-left: 10px;">
+                      <h3 style="margin: 0 0 20px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #1e293b; font-weight: 900;">Verified Transit Milestones</h3>
+                      <div style="border-left: 2px solid #f1f5f9; padding-left: 25px; margin-left: 10px;">
                         ${trackingData.history.map(t => `
-                          <div style="margin-bottom: 20px; position: relative;">
-                            <div style="position: absolute; left: -26px; top: 0; width: 10px; height: 10px; background: #2563eb; border-radius: 50%;"></div>
-                            <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: bold;">${new Date(t.timestamp).toLocaleString()}</p>
-                            <p style="margin: 5px 0 0 0; font-weight: bold; color: #1e293b;">${t.status} @ ${t.location}</p>
-                            <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748b;">${t.remarks || ""}</p>
+                          <div style="margin-bottom: 25px; position: relative;">
+                            <div style="position: absolute; left: -31px; top: 0; width: 10px; height: 10px; background: #2563eb; border-radius: 50%; box-shadow: 0 0 0 4px white;"></div>
+                            <p style="margin: 0; font-size: 10px; color: #94a3b8; font-weight: 900; text-transform: uppercase;">${new Date(t.timestamp).toLocaleString()}</p>
+                            <p style="margin: 5px 0 0 0; font-weight: 800; color: #0f172a; font-size: 14px;">${t.status} • ${t.location}</p>
+                            <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748b; font-style: italic;">${t.remarks || "Checkpoint synchronization complete."}</p>
                           </div>
                         `).join('')}
                       </div>
                     </div>
 
-                    <div style="background: linear-gradient(to right, #2563eb, #1d4ed8); padding: 25px; border-radius: 12px; color: white;">
-                      <h3 style="margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #bfdbfe;">AI Predictive Insight</h3>
-                      <p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.5;">${trackingData.ai_insight || "No active insights."}</p>
+                    <div style="background: #0f172a; padding: 30px; border-radius: 16px; color: white;">
+                      <div style="display: flex; items-center; gap: 10px; margin-bottom: 10px;">
+                        <span style="font-size: 10px; font-weight: 900; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.2em;">AI Predictive Analytics</span>
+                      </div>
+                      <p style="margin: 0; font-size: 16px; font-weight: 700; line-height: 1.6; color: #cbd5e1;">${trackingData.ai_insight || "Predictive models are processing current transit vectors."}</p>
                     </div>
 
-                    <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px;">
-                      Generated by Shnoor AI Logistics Engine • Secure Blockchain-Verified Tracking
+                    <div style="margin-top: 60px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 25px; font-weight: bold; letter-spacing: 0.05em;">
+                      OFFICIAL TRANSIT DOCUMENT • GENERATED BY SHNOOR AI LOGISTICS ENGINE • BLOCKCHAIN VERIFIED
                     </div>
                   </div>
                 `;
@@ -287,10 +291,11 @@ const Tracking = () => {
                 printWindow.document.close();
                 printWindow.print();
               }}
-              className="w-full bg-white border-2 border-slate-100 text-slate-600 py-3 rounded-xl font-bold text-sm hover:border-blue-200 hover:text-blue-600 transition-all flex items-center justify-center gap-2 group"
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2 group"
             >
-              Export Tracking Report
-              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              <Download size={18} />
+              Download Tracking Report (PDF)
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform opacity-50" />
             </button>
           </div>
 

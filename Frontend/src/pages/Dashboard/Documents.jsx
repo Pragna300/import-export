@@ -18,7 +18,13 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
-  Box
+  Box,
+  Globe,
+  DollarSign,
+  Download,
+  FileStack,
+  Printer,
+  FileJson
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,7 +41,7 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
           const res = await fetch(`${config_env.API_BASE_URL}/documents/${docId}`);
           const data = await res.json();
           setDocDetail(data);
-          if (['Completed', 'Failed', 'Error', 'Failed Validation', 'Processing Error'].includes(data.status)) {
+          if (['Completed', 'Failed', 'Error', 'Failed Validation', 'Processing Error'].includes(data?.status)) {
             clearInterval(interval);
           }
         } catch (err) {
@@ -52,11 +58,11 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
   if (!isOpen) return null;
 
   const steps = [
-    { id: 'ocr', label: 'AI OCR Extraction', isDone: docDetail?.extracted_data && !docDetail?.extracted_data.error },
+    { id: 'ocr', label: 'AI OCR Extraction', isDone: !!(docDetail?.extracted_data?.product_name || docDetail?.extracted_data?.shipment_code) },
     { id: 'ship', label: 'Shipment Record Created', isDone: !!docDetail?.shipment_id },
-    { id: 'hsn', label: 'HSN Classification', isDone: docDetail?.extracted_data?.hsn_result },
-    { id: 'duty', label: 'Duty & Tax Calculated', isDone: docDetail?.extracted_data?.duty_result },
-    { id: 'risk', label: 'Risk Assessment Analyzed', isDone: docDetail?.extracted_data?.risk_result },
+    { id: 'hsn', label: 'HSN Classification', isDone: !!docDetail?.extracted_data?.hsn_result },
+    { id: 'duty', label: 'Duty & Tax Calculated', isDone: !!docDetail?.extracted_data?.duty_result },
+    { id: 'risk', label: 'Risk Assessment Analyzed', isDone: !!docDetail?.extracted_data?.risk_result },
   ];
 
   return (
@@ -80,55 +86,216 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
 
           {/* Timeline */}
           <div className="relative space-y-6 py-4">
-             {/* Progress Line */}
-             <div className="absolute left-[13px] top-8 bottom-8 w-0.5 bg-slate-100" />
-             
-             {steps.map((step, i) => (
-                <div key={step.id} className="relative flex items-center gap-4 group">
-                   <div className={`z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-500 ${
-                     step.isDone 
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' 
-                      : i === steps.findIndex(s => !s.isDone) 
-                        ? 'bg-blue-600 text-white ring-4 ring-blue-50 animate-pulse' 
-                        : 'bg-slate-100 text-slate-300'
-                   }`}>
-                      {step.isDone ? <CheckCircle2 size={14} /> : i === steps.findIndex(s => !s.isDone) ? <Zap size={14} /> : <div className="w-1.5 h-1.5 bg-current rounded-full" />}
-                   </div>
-                   <span className={`text-sm font-bold transition-colors duration-500 ${step.isDone ? 'text-slate-800' : 'text-slate-400'}`}>
-                     {step.label}
-                   </span>
+            {/* Progress Line */}
+            <div className="absolute left-[13px] top-8 bottom-8 w-0.5 bg-slate-100" />
+
+            {steps.map((step, i) => (
+              <div key={step.id} className="relative flex items-center gap-4 group">
+                <div className={`z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-500 ${step.isDone
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
+                    : i === steps.findIndex(s => !s.isDone)
+                      ? 'bg-blue-600 text-white ring-4 ring-blue-50 animate-pulse'
+                      : 'bg-slate-100 text-slate-300'
+                  }`}>
+                  {step.isDone ? <CheckCircle2 size={14} /> : i === steps.findIndex(s => !s.isDone) ? <Zap size={14} /> : <div className="w-1.5 h-1.5 bg-current rounded-full" />}
                 </div>
-             ))}
+                <span className={`text-sm font-bold transition-colors duration-500 ${step.isDone ? 'text-slate-800' : 'text-slate-400'}`}>
+                  {step.label}
+                </span>
+              </div>
+            ))}
           </div>
 
           <div className="pt-4 flex flex-col gap-3">
-             {docDetail?.status === 'Completed' ? (
-                <button 
+            {docDetail?.status === 'Completed' && (
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 overflow-hidden">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Extracted JSON Data</span>
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([JSON.stringify(docDetail?.extracted_data, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `analysis_${docId}.json`;
+                      a.click();
+                    }}
+                    className="text-[9px] font-bold text-blue-600 hover:underline"
+                  >
+                    Export JSON
+                  </button>
+                </div>
+                <pre className="text-[10px] font-mono text-slate-600 bg-white p-3 rounded-lg border border-slate-100 overflow-x-auto max-h-40">
+                  {JSON.stringify(docDetail?.extracted_data, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* REFINED INTELLIGENCE SIGNALS */}
+            <div className="grid grid-cols-4 gap-2 py-4">
+              {[
+                { id: 'cla', label: 'Type', active: !!docDetail?.doc_type, icon: FileStack, color: 'blue' },
+                { id: 'hsn', label: 'HSN', active: !!docDetail?.extracted_data?.hsn_result, icon: Zap, color: 'amber' },
+                { id: 'tax', label: 'Duty', active: !!docDetail?.extracted_data?.duty_result, icon: DollarSign, color: 'emerald' },
+                { id: 'risk', label: 'Risk', active: !!docDetail?.extracted_data?.risk_result, icon: ShieldCheck, color: 'rose' }
+              ].map((s) => (
+                <div key={s.id} className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all duration-700 ${s.active
+                    ? `bg-${s.color}-50 border-${s.color}-200 text-${s.color}-600 scale-105 shadow-sm`
+                    : 'bg-slate-50 border-slate-100 text-slate-300'
+                  }`}>
+                  <s.icon size={16} className={s.active ? 'animate-bounce-subtle' : ''} />
+                  <span className="text-[8px] font-black uppercase tracking-widest">{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {(docDetail?.status === 'Completed' || docDetail?.extracted_data?.hsn_result) ? (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                {/* ULTRA PREMIUM INTELLIGENCE CARD */}
+                <div className="relative group overflow-hidden">
+                  {/* Background Glow */}
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-10 group-hover:opacity-20 transition-all duration-500" />
+
+                  <div className="relative bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-2xl shadow-blue-900/10">
+                    {/* Header Section */}
+                    <div className="bg-slate-900 px-5 py-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/20 rounded-xl backdrop-blur-md">
+                          <Brain size={18} className="text-blue-400 animate-pulse" />
+                        </div>
+                        <div>
+                          <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-none mb-1">AI Intelligence Hub</h3>
+                          <p className="text-[8px] font-bold text-blue-200/60 uppercase tracking-widest">Reconciliation Complete</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] font-black text-white bg-white/10 px-2.5 py-1 rounded-full uppercase tracking-widest border border-white/5">
+                          {docDetail?.doc_type}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Content Grid */}
+                    <div className="p-6 grid grid-cols-2 gap-y-6 gap-x-8 bg-gradient-to-b from-white to-slate-50/50">
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <Box size={10} className="text-blue-500" /> Consignment
+                        </p>
+                        <p className="text-sm font-black text-slate-900 tracking-tight leading-tight truncate">{docDetail?.extracted_data?.product_name}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <Zap size={10} className="text-amber-500" /> HSN Index
+                        </p>
+                        <p className="text-sm font-black text-slate-900 tracking-tight leading-tight">{docDetail?.extracted_data?.hsn_code}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <Globe size={10} className="text-indigo-500" /> Origin Point
+                        </p>
+                        <p className="text-sm font-black text-slate-900 tracking-tight leading-tight">{docDetail?.extracted_data?.country}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <DollarSign size={10} className="text-emerald-500" /> Duty Liability
+                        </p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-sm font-black text-emerald-600">{docDetail?.extracted_data?.currency}</span>
+                          <span className="text-lg font-black text-slate-900">{docDetail?.extracted_data?.duty_result?.total_cost}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Area */}
+                    <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex flex-col gap-2">
+                      <button
+                        onClick={() => {
+                          const win = window.open('', '_blank');
+                          win.document.write(`
+                                    <html>
+                                        <head>
+                                            <title>AI Intelligence Report - ${docDetail?.filename}</title>
+                                            <style>
+                                                body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
+                                                .header { border-bottom: 3px solid #0f172a; padding-bottom: 25px; margin-bottom: 40px; }
+                                                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+                                                .card { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
+                                                .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+                                                .value { font-size: 16px; font-weight: 900; margin-top: 6px; color: #0f172a; }
+                                            </style>
+                                        </head>
+                                        <body onload="window.print()">
+                                            <div class="header">
+                                                <h1 style="margin:0; font-size: 32px; font-weight: 900;">Intelligence Audit Report</h1>
+                                                <p style="margin:8px 0 0 0; color:#64748b; font-weight: 600;">Verified Document: ${docDetail?.filename} • ${docDetail?.doc_type}</p>
+                                            </div>
+                                            <div class="grid">
+                                                <div class="card"><div class="label">Product Consignment</div><div class="value">${docDetail?.extracted_data?.product_name}</div></div>
+                                                <div class="card"><div class="label">Harmonized System (HSN)</div><div class="value">${docDetail?.extracted_data?.hsn_code}</div></div>
+                                                <div class="card"><div class="label">Total Duty Liability</div><div class="value">${docDetail?.extracted_data?.currency} ${docDetail?.extracted_data?.duty_result?.total_cost}</div></div>
+                                                <div class="card"><div class="label">Origin / Destination</div><div class="value">${docDetail?.extracted_data?.country} → ${docDetail?.extracted_data?.destination_country}</div></div>
+                                            </div>
+                                            <div style="margin-top: 50px; border-radius: 12px; background: #0f172a; color: white; padding: 30px;">
+                                                <p style="margin:0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.6;">AI Risk Compliance Result</p>
+                                                <h2 style="margin: 10px 0; font-size: 24px; font-weight: 900; color: #3b82f6;">${docDetail?.extracted_data?.risk_result?.risk_level} Risk Level</h2>
+                                                <p style="margin:0; font-size: 13px; font-weight: 500; opacity: 0.8;">${docDetail?.extracted_data?.risk_result?.reason}</p>
+                                            </div>
+                                        </body>
+                                    </html>
+                                `);
+                          win.document.close();
+                        }}
+                        className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 group/btn"
+                      >
+                        <Printer size={14} className="group-hover/btn:scale-110 transition-transform" />
+                        Download Intelligence Audit (PDF)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button
                   onClick={() => navigate(`/dashboard/shipments`)}
                   className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 group"
                 >
-                  View Full Analysis
+                  View in Shipment Ledger
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
-             ) : (
-                <div className="flex flex-col items-center gap-4 w-full">
-                   {docDetail?.shipment_id && (
-                      <button 
-                         onClick={() => navigate(`/dashboard/shipments`)}
-                         className="w-full bg-blue-50 text-blue-600 py-3 rounded-xl font-bold text-xs hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
-                      >
-                         <Box size={14} />
-                         Shipment Created - View Record
-                      </button>
-                   )}
-                   <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="animate-spin text-blue-600" size={24} />
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parsing Logistics Schema...</p>
-                   </div>
+              </div>
+            ) : ['Failed', 'Error', 'Failed Validation', 'Processing Error'].includes(docDetail?.status) ? (
+              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+                  <X size={24} />
                 </div>
-             )}
-             
-             <button onClick={onFinish} className="text-xs font-bold text-slate-400 hover:text-slate-600 py-2">Close & Continue in Background</button>
+                <div>
+                  <h3 className="text-sm font-black text-rose-900 uppercase tracking-widest">Analysis Failed</h3>
+                  <p className="text-xs text-rose-600 mt-1 font-medium">
+                    {docDetail?.extracted_data?.error || "We encountered an unexpected issue while analyzing your document."}
+                  </p>
+                </div>
+                <button onClick={onFinish} className="w-full bg-rose-600 text-white py-3 rounded-xl font-bold text-xs hover:bg-rose-700 transition-all">
+                  Dismiss & Retry
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4 w-full">
+                {docDetail?.shipment_id && (
+                  <button
+                    onClick={() => navigate(`/dashboard/shipments`)}
+                    className="w-full bg-blue-50 text-blue-600 py-3 rounded-xl font-bold text-xs hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Box size={14} />
+                    Shipment Created - View Record
+                  </button>
+                )}
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="animate-spin text-blue-600" size={24} />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parsing Logistics Schema...</p>
+                </div>
+              </div>
+            )}
+
+            <button onClick={onFinish} className="text-xs font-bold text-slate-400 hover:text-slate-600 py-2">Close & Continue in Background</button>
           </div>
         </div>
       </div>
@@ -140,16 +307,16 @@ const DOC_TYPES = ['All', 'Invoice', 'Bill of Lading', 'Certificate', 'Other'];
 
 const StatusBadge = ({ status }) => {
   const config = {
-    Completed: { icon: <CheckCircle2 size={10} />, cls: 'bg-emerald-100 text-emerald-700' },
-    Processing: { icon: <Clock size={10} className="animate-spin" />, cls: 'bg-amber-100 text-amber-700 animate-pulse' },
-    Pending:    { icon: <AlertCircle size={10} />, cls: 'bg-slate-100 text-slate-600' },
-    Failed:     { icon: <X size={10} />, cls: 'bg-rose-100 text-rose-700' },
-    Error:      { icon: <AlertCircle size={10} />, cls: 'bg-rose-100 text-rose-700' },
-    'Failed Validation': { icon: <X size={10} />, cls: 'bg-rose-100 text-rose-700' },
+    Completed: { icon: <CheckCircle2 size={10} />, cls: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+    Processing: { icon: <Loader2 size={10} className="animate-spin" />, cls: 'bg-blue-50 text-blue-600 border-blue-100 animate-pulse' },
+    Pending: { icon: <Clock size={10} />, cls: 'bg-slate-50 text-slate-400 border-slate-100' },
+    Failed: { icon: <X size={10} />, cls: 'bg-rose-50 text-rose-600 border-rose-100' },
+    Error: { icon: <AlertCircle size={10} />, cls: 'bg-rose-50 text-rose-600 border-rose-100' },
+    'Failed Validation': { icon: <X size={10} />, cls: 'bg-rose-50 text-rose-600 border-rose-100' },
   };
   const s = config[status] || config.Pending;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${s.cls}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border ${s.cls} shadow-sm shadow-black/5`}>
       {s.icon} {status}
     </span>
   );
@@ -163,15 +330,15 @@ const Documents = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null); // null | 'uploading' | 'done' | 'error'
   const [uploadMsg, setUploadMsg] = useState('');
-  
+
   // Modal & Polling State
   const [activeAnalysisId, setActiveAnalysisId] = useState(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
-  
+
   // Pagination State
   const [page, setPage] = useState(0);
   const perPage = 10;
-  
+
   const fileInputRef = useRef(null);
 
   const fetchDocs = async () => {
@@ -212,14 +379,14 @@ const Documents = () => {
       const response = await fetch(`${config_env.API_BASE_URL}/documents/upload`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(await response.text());
       const resData = await response.json();
-      
+
       setUploadStatus('done');
       setUploadMsg('✅ Document uploaded!');
-      
+
       // Open the guided analysis modal
       setActiveAnalysisId(resData.id);
       setIsAnalysisOpen(true);
-      
+
       fetchDocs();
       setTimeout(() => setUploadStatus(null), 4000);
     } catch (e) {
@@ -244,12 +411,12 @@ const Documents = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <AnalysisTimelineModal 
-        isOpen={isAnalysisOpen} 
-        docId={activeAnalysisId} 
-        onFinish={() => setIsAnalysisOpen(false)} 
+      <AnalysisTimelineModal
+        isOpen={isAnalysisOpen}
+        docId={activeAnalysisId}
+        onFinish={() => setIsAnalysisOpen(false)}
       />
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -269,11 +436,10 @@ const Documents = () => {
 
       {/* Upload Status Banner */}
       {uploadStatus && (
-        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-medium text-sm transition-all ${
-          uploadStatus === 'uploading' ? 'bg-blue-50 border-blue-200 text-blue-700' :
-          uploadStatus === 'done' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-          'bg-rose-50 border-rose-200 text-rose-700'
-        }`}>
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-medium text-sm transition-all ${uploadStatus === 'uploading' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+            uploadStatus === 'done' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+              'bg-rose-50 border-rose-200 text-rose-700'
+          }`}>
           {uploadStatus === 'uploading' && <Loader2 className="animate-spin" size={16} />}
           {uploadStatus === 'done' && <CheckCircle2 size={16} />}
           {uploadStatus === 'error' && <AlertCircle size={16} />}
@@ -288,11 +454,10 @@ const Documents = () => {
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
-          isDragging
+        className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${isDragging
             ? 'border-blue-500 bg-blue-50 scale-[1.01]'
             : 'border-slate-200 bg-slate-50/50 hover:border-blue-300 hover:bg-blue-50/30'
-        }`}
+          }`}
       >
         <div className="flex flex-col items-center gap-3">
           <div className="p-4 bg-white border border-slate-200 rounded-full shadow-sm">
@@ -319,9 +484,8 @@ const Documents = () => {
               <button
                 key={t}
                 onClick={() => setActiveType(t)}
-                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                  activeType === t ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeType === t ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >{t}</button>
             ))}
           </div>
@@ -341,90 +505,135 @@ const Documents = () => {
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left min-w-[800px]">
             <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Document</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Linked Shipment</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Status</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Uploaded</th>
-              <th className="px-6 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {isLoading ? (
-              <tr>
-                <td colSpan="6" className="py-20 text-center">
-                  <Loader2 className="animate-spin text-blue-600 mx-auto" size={28} />
-                  <p className="text-xs font-bold text-slate-400 mt-4 uppercase tracking-widest">Loading Document Repository...</p>
-                </td>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Document</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Linked Shipment</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Status</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Uploaded</th>
+                <th className="px-6 py-3"></th>
               </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="py-20 text-center">
-                  <div className="inline-flex flex-col items-center gap-3">
-                    <div className="p-4 bg-slate-100 rounded-full">
-                      <FileText size={24} className="text-slate-400" />
-                    </div>
-                    <p className="text-sm font-bold text-slate-500">No documents found</p>
-                    <p className="text-xs text-slate-400">Upload a PDF or image to get started</p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filtered.map((doc) => (
-                <tr key={doc.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                        <FileText size={16} />
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" className="py-20 text-center">
+                    <Loader2 className="animate-spin text-blue-600 mx-auto" size={28} />
+                    <p className="text-xs font-bold text-slate-400 mt-4 uppercase tracking-widest">Loading Document Repository...</p>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-20 text-center">
+                    <div className="inline-flex flex-col items-center gap-3">
+                      <div className="p-4 bg-slate-100 rounded-full">
+                        <FileText size={24} className="text-slate-400" />
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">
-                          {doc.file_url ? doc.file_url.split('/').pop() : `Document #${doc.id}`}
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-bold">ID: {doc.id}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">
-                      {doc.doc_type || 'Unknown'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-black text-blue-600">
-                      {doc.shipment_id ? `#${doc.shipment_id}` : '— Unlinked'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <StatusBadge status={doc.status || 'Pending'} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs text-slate-400 font-medium">
-                      {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-IN') : 'N/A'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {(doc.status === 'Failed' || doc.status === 'Error' || doc.status === 'Failed Validation') && (
-                        <button 
-                          onClick={() => handleDelete(doc.id)}
-                          className="p-1.5 text-rose-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-all tooltip"
-                          title="Delete Failed Document"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                      <button className="p-1.5 text-slate-300 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-all">
-                        <MoreVertical size={16} />
-                      </button>
+                      <p className="text-sm font-bold text-slate-500">No documents found</p>
+                      <p className="text-xs text-slate-400">Upload a PDF or image to get started</p>
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filtered.map((doc) => (
+                  <tr key={doc.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                          <FileText size={16} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">
+                            {doc.file_url ? doc.file_url.split('/').pop() : `Document #${doc.id}`}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-bold">ID: {doc.id}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">
+                        {doc.doc_type || 'Unknown'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-black text-blue-600">
+                        {doc.shipment_id ? `#${doc.shipment_id}` : '— Unlinked'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <StatusBadge status={doc.status || 'Pending'} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs text-slate-400 font-medium">
+                        {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-IN') : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {doc.status === 'Completed' && (
+                          <button
+                            onClick={() => {
+                              // Re-use the premium audit report template
+                              const win = window.open('', '_blank');
+                              win.document.write(`
+                                  <html>
+                                      <head>
+                                          <title>AI Intelligence Report - ${doc.id}</title>
+                                          <style>
+                                              body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
+                                              .header { border-bottom: 3px solid #0f172a; padding-bottom: 25px; margin-bottom: 40px; }
+                                              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+                                              .card { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
+                                              .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+                                              .value { font-size: 16px; font-weight: 900; margin-top: 6px; color: #0f172a; }
+                                          </style>
+                                      </head>
+                                      <body onload="window.print()">
+                                          <div class="header">
+                                              <h1 style="margin:0; font-size: 32px; font-weight: 900;">Intelligence Audit Report</h1>
+                                              <p style="margin:8px 0 0 0; color:#64748b; font-weight: 600;">Verified Document ID: ${doc.id} • ${doc.doc_type}</p>
+                                          </div>
+                                          <div class="grid">
+                                              <div class="card"><div class="label">Product Consignment</div><div class="value">${doc.extracted_data?.product_name || 'N/A'}</div></div>
+                                              <div class="card"><div class="label">Harmonized System (HSN)</div><div class="value">${doc.extracted_data?.hsn_code || 'N/A'}</div></div>
+                                              <div class="card"><div class="label">Total Duty Liability</div><div class="value">${doc.extracted_data?.currency || 'INR'} ${doc.extracted_data?.duty_result?.total_cost || '0'}</div></div>
+                                              <div class="card"><div class="label">Origin / Destination</div><div class="value">${doc.extracted_data?.country || 'N/A'} → ${doc.extracted_data?.destination_country || 'N/A'}</div></div>
+                                          </div>
+                                          <div style="margin-top: 50px; border-radius: 12px; background: #0f172a; color: white; padding: 30px;">
+                                              <p style="margin:0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.6;">AI Risk Compliance Result</p>
+                                              <h2 style="margin: 10px 0; font-size: 24px; font-weight: 900; color: #3b82f6;">${doc.extracted_data?.risk_result?.risk_level || 'Unknown'} Risk Level</h2>
+                                              <p style="margin:0; font-size: 13px; font-weight: 500; opacity: 0.8;">${doc.extracted_data?.risk_result?.reason || 'Compliance analysis completed.'}</p>
+                                          </div>
+                                      </body>
+                                  </html>
+                              `);
+                              win.document.close();
+                            }}
+                            className="p-1.5 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 rounded-md transition-all tooltip"
+                            title="Download Extracted Intelligence"
+                          >
+                            <Printer size={16} />
+                          </button>
+                        )}
+                        {(doc.status === 'Failed' || doc.status === 'Error' || doc.status === 'Failed Validation') && (
+                          <button
+                            onClick={() => handleDelete(doc.id)}
+                            className="p-1.5 text-rose-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-all tooltip"
+                            title="Delete Failed Document"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                        <button className="p-1.5 text-slate-300 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-all">
+                          <MoreVertical size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Footer with Pagination */}
@@ -433,14 +642,14 @@ const Documents = () => {
             {filtered.length} visible • Page {page + 1}
           </p>
           <div className="flex gap-2">
-            <button 
+            <button
               disabled={page === 0}
               onClick={() => setPage(p => Math.max(0, p - 1))}
               className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-50 transition-all"
             >
               Previous
             </button>
-            <button 
+            <button
               disabled={docs.length < perPage}
               onClick={() => setPage(p => p + 1)}
               className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:border-blue-200 hover:text-blue-600 disabled:opacity-50 transition-all"

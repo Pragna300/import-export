@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, extract
 from models.models import Shipment, Document, HSNClassification, RiskAssessment, Duty
 
 async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_date: str = None):
@@ -13,68 +13,84 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         try:
             # Flexible parsing for common JS date formats
             start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            start_dt = start_dt.replace(tzinfo=None) # Make naive for SQLAlchemy
         except:
             pass
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            end_dt = end_dt.replace(tzinfo=None) # Make naive for SQLAlchemy
         except:
             pass
 
     def apply_filters(stmt, model):
+        date_col = None
+        if hasattr(model, 'created_at'):
+            date_col = model.created_at
+        elif hasattr(model, 'calculated_at'):
+            date_col = model.calculated_at
+        
+        if date_col is None:
+            return stmt
+
         if start_dt:
-            stmt = stmt.where(model.created_at >= start_dt)
+            stmt = stmt.where(date_col >= start_dt)
         if end_dt:
-            stmt = stmt.where(model.created_at <= end_dt)
+            stmt = stmt.where(date_col <= end_dt)
         return stmt
 
-    # Counts
-    shipments_count_res = await db.execute(apply_filters(select(func.count(Shipment.id)), Shipment))
-    shipments_count = shipments_count_res.scalar() or 0
-    
-    docs_count_res = await db.execute(apply_filters(select(func.count(Document.id)), Document))
-    docs_count = docs_count_res.scalar() or 0
-    
-    # risk_alerts logic (filtered)
-    risk_alerts_stmt = apply_filters(select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High'), RiskAssessment)
-    risk_alerts_res = await db.execute(risk_alerts_stmt)
-    risk_alerts = risk_alerts_res.scalar() or 0
-    
-    # Financials (filtered)
-    total_revenue_stmt = apply_filters(select(func.sum(Shipment.total_value)), Shipment)
-    total_val_result = await db.execute(total_revenue_stmt)
-    total_revenue = total_val_result.scalar() or 0
-    
-    total_duty_stmt = apply_filters(select(func.sum(Duty.total_cost)), Duty)
-    total_duty_result = await db.execute(total_duty_stmt)
-    total_duty = total_duty_result.scalar() or 0
+    # Sequential execution for Session stability
+    try:
+        # Core counts and sums
+        res0 = await db.execute(apply_filters(select(func.count(Shipment.id)), Shipment))
+        shipments_count = res0.scalar() or 0
 
-    # Financial Summary Metrics
-    total_revenue_val = float(total_revenue)
-    total_expenses_val = float(total_duty)
-    
-    # Simulate Paid vs Pending (Delivered = Paid)
-    paid_stmt = apply_filters(select(func.sum(Shipment.total_value)).where(Shipment.status == 'Delivered'), Shipment)
-    paid_result = await db.execute(paid_stmt)
-    paid_amount = float(paid_result.scalar() or 0)
+        res1 = await db.execute(apply_filters(select(func.count(Document.id)), Document))
+        docs_count = res1.scalar() or 0
+
+        res2 = await db.execute(apply_filters(select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High'), RiskAssessment))
+        risk_alerts = res2.scalar() or 0
+
+        res3 = await db.execute(apply_filters(select(func.sum(Shipment.total_value)), Shipment))
+        total_revenue_val = float(res3.scalar() or 0)
+
+        # Use COALESCE or simple .scalar() or 0 for total_cost
+        res4 = await db.execute(apply_filters(select(func.sum(Duty.total_cost)), Duty))
+        total_expenses_val = float(res4.scalar() or 0)
+
+        res5 = await db.execute(apply_filters(select(func.sum(Shipment.total_value)).where(Shipment.status == 'Delivered'), Shipment))
+        paid_amount = float(res5.scalar() or 0)
+
+        # HSN and Price Metrics
+        res6 = await db.execute(apply_filters(select(func.count(HSNClassification.id)), HSNClassification))
+        hsn_classified_count = res6.scalar() or 0
+
+        res7 = await db.execute(apply_filters(select(func.min(Shipment.unit_price)), Shipment))
+        min_price_val = float(res7.scalar() or 0)
+
+        res8 = await db.execute(apply_filters(select(func.max(Shipment.total_value)), Shipment))
+        peak_value_val = float(res8.scalar() or 0)
+
+        res8 = await db.execute(apply_filters(select(
+            func.sum(Duty.duty_amount),
+            func.sum(Duty.tax_amount),
+            func.sum(Duty.other_charges)
+        ), Duty))
+        cat_row = res8.first()
+        duty_sum = float(cat_row[0] or 0)
+        tax_sum = float(cat_row[1] or 0)
+        other_sum = float(cat_row[2] or 0)
+
+    except Exception as e:
+        print(f"❌ Query Error: {e}")
+        shipments_count = docs_count = risk_alerts = 0
+        total_revenue_val = total_expenses_val = paid_amount = 0
+        hsn_classified_count = peak_value_val = 0
+        duty_sum = tax_sum = other_sum = 0
+
     pending_amount = total_revenue_val - paid_amount
-
-    # AI Revenue Forecasting
     growth_rate = 1.05 
     forecast_30 = total_revenue_val * growth_rate / 3.0 
-    
-    # Category Distribution (Real data from Duty table)
-    cat_stmt = apply_filters(select(
-        func.sum(Duty.duty_amount),
-        func.sum(Duty.tax_amount),
-        func.sum(Duty.other_charges)
-    ), Duty)
-    cat_res = await db.execute(cat_stmt)
-    cat_row = cat_res.first()
-    
-    duty_sum = float(cat_row[0] or 0)
-    tax_sum = float(cat_row[1] or 0)
-    other_sum = float(cat_row[2] or 0)
     
     category_dist = [
         {"name": "Customs Duty", "value": duty_sum, "color": "#3b82f6"},
@@ -90,53 +106,50 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         {"name": "Net Banking", "value": paid_amount * 0.1, "color": "#94a3b8"},
     ]
 
-    # Historical Time Series (Grouped by Year and Month)
-    from sqlalchemy import extract
-    
-    base_history_stmt = select(
+    # History and Product Performance parallelization
+    hist_stmt = apply_filters(select(
         extract('year', Shipment.created_at).label('year'),
         extract('month', Shipment.created_at).label('month'),
         func.sum(Shipment.total_value).label('revenue'),
         func.count(Shipment.id).label('count')
-    )
-    
-    filtered_history_stmt = apply_filters(base_history_stmt, Shipment).group_by('year', 'month').order_by('year', 'month')
-    history_res = await db.execute(filtered_history_stmt)
-    history_series = []
-    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    
-    for row in history_res.all():
-        y = int(row[0])
-        m_idx = int(row[1])
-        history_series.append({
-            "month": f"{month_names[m_idx]} {y}" if 0 < m_idx < 13 else f"{m_idx}/{y}",
-            "revenue": float(row[2] or 0),
-            "expenses": float(row[2] or 0) * 0.15, # Placeholder ratio until we have more duty dates
-            "transactions": int(row[3] or 0)
-        })
+    ), Shipment).group_by(extract('year', Shipment.created_at), extract('month', Shipment.created_at)).order_by(extract('year', Shipment.created_at), extract('month', Shipment.created_at))
 
-    # Fallback for UI if empty
-    if not history_series:
-        history_series = [{"month": "No Data", "revenue": 0, "expenses": 0, "transactions": 0}]
-
-    # Product Performance (Aggregated from shipments)
-    product_perf_stmt = apply_filters(select(
+    perf_stmt = apply_filters(select(
         Shipment.product_name, 
         func.count(Shipment.id).label('count'),
         func.sum(Shipment.total_value).label('value')
     ).group_by(Shipment.product_name), Shipment).limit(10)
-    
-    product_perf_res = await db.execute(product_perf_stmt)
+
+    hist_res = await db.execute(hist_stmt)
+    perf_res = await db.execute(perf_stmt)
+
+    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    history_series = []
+    for row in hist_res.all():
+        try:
+            year_val = int(row[0]) if row[0] is not None else 2024
+            month_idx = int(row[1]) if row[1] is not None else 1
+            
+            history_series.append({
+                "month": f"{month_names[month_idx]} {year_val}" if 0 < month_idx < 13 else f"{month_idx}/{year_val}",
+                "revenue": float(row[2] or 0),
+                "expenses": float(row[2] or 0) * 0.15,
+                "transactions": int(row[3] or 0)
+            })
+        except (ValueError, TypeError, IndexError):
+            continue
+
     product_performance = []
-    for row in product_perf_res.all():
+    for row in perf_res.all():
         product_performance.append({
             "name": row[0],
             "count": row[1],
             "value": float(row[2] or 0),
             "color": "#3b82f6"
         })
-    
-    # Fallback if no shipments exist yet to prevent crash
+
+    if not history_series:
+        history_series = [{"month": "No Data", "revenue": 0, "expenses": 0, "transactions": 0}]
     if not product_performance:
         product_performance = [{"name": "No Data", "count": 0, "value": 0, "color": "#cbd5e1"}]
 
@@ -152,8 +165,8 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
             "risk_alerts": risk_alerts,
             "paid_percent": f"{(paid_amount / total_revenue_val * 100) if total_revenue_val > 0 else 0:.1f}%",
             "avg_price": f"₹{(total_revenue_val / (shipments_count if shipments_count > 0 else 1)):,.0f}",
-            "min_price": f"₹{float(await db.scalar(apply_filters(select(func.min(Shipment.unit_price)), Shipment)) or 0):,.0f}",
-            "peak_value": f"₹{float(await db.scalar(apply_filters(select(func.max(Shipment.total_value)), Shipment)) or 0):,.0f}",
+            "min_price": f"₹{min_price_val:,.0f}",
+            "peak_value": f"₹{peak_value_val:,.0f}",
         },
         "forecasts": {
             "30_day": f"₹{forecast_30:,.0f}",
@@ -163,8 +176,8 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         "category_distribution": category_dist,
         "payment_methods": payment_methods,
         "hsn_status": [
-            {"name": "Classified", "value": int(await db.scalar(select(func.count(HSNClassification.id)))), "color": "#10b981"},
-            {"name": "Pending", "value": int(shipments_count - int(await db.scalar(select(func.count(HSNClassification.id))))), "color": "#3b82f6"},
+            {"name": "Classified", "value": int(hsn_classified_count), "color": "#10b981"},
+            {"name": "Pending", "value": int(shipments_count - hsn_classified_count), "color": "#3b82f6"},
             {"name": "Error", "value": 0, "color": "#f43f5e"},
         ],
         "history": history_series,

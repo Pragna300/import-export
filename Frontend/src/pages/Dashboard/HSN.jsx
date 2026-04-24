@@ -14,7 +14,8 @@ import {
   Hash,
   Sparkles,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from 'lucide-react';
 
 // --- Confidence meter mini-component ---
@@ -293,9 +294,59 @@ const HSN = () => {
                           <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{item.model_version}</span>
                         </td>
                         <td className="px-5 py-3 text-right">
-                          <button className="p-1.5 text-slate-300 hover:text-blue-600 bg-white border border-slate-100 rounded-md hover:border-blue-200 transition-all">
-                            <ArrowRight size={14} />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => {
+                                const win = window.open('', '_blank');
+                                win.document.write(`
+                                    <html>
+                                        <head>
+                                            <title>HSN Classification Audit - ${item.product}</title>
+                                            <style>
+                                                body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
+                                                .header { border-bottom: 4px solid #3b82f6; padding-bottom: 25px; margin-bottom: 40px; }
+                                                .card { background: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
+                                                .label { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+                                                .value { font-size: 18px; font-weight: 900; margin-top: 6px; color: #0f172a; }
+                                                .hsn-badge { display: inline-block; background: #eff6ff; color: #2563eb; padding: 8px 20px; border-radius: 99px; font-size: 14px; font-weight: 900; border: 1px solid #dbeafe; }
+                                                .confidence { font-size: 12px; font-weight: 700; color: #10b981; margin-top: 10px; }
+                                            </style>
+                                        </head>
+                                        <body onload="window.print()">
+                                            <div class="header">
+                                                <h1 style="margin:0; font-size: 28px; font-weight: 900;">HSN Intelligence Audit</h1>
+                                                <p style="margin:8px 0 0 0; color:#64748b; font-weight: 600;">Product Reference: ${item.product}</p>
+                                            </div>
+                                            <div class="card">
+                                                <div class="label">Assigned HSN Code</div>
+                                                <div style="margin-top:10px;"><span class="hsn-badge">${item.hsn_code}</span></div>
+                                                <div class="confidence">AI Confidence Level: ${item.confidence.toFixed(1)}%</div>
+                                            </div>
+                                            <div class="card">
+                                                <div class="label">Shipment Attribution</div>
+                                                <div class="value">${item.shipment_code}</div>
+                                            </div>
+                                            <div class="card">
+                                                <div class="label">Classification Model</div>
+                                                <div class="value">${item.model_version}</div>
+                                            </div>
+                                            <div style="margin-top: 50px; border-top: 1px solid #e2e8f0; pt-20px; text-align: center; font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em;">
+                                                SHNOOR AI CLASSIFICATION ENGINE • VERIFIED AUDIT
+                                            </div>
+                                        </body>
+                                    </html>
+                                `);
+                                win.document.close();
+                              }}
+                              className="p-1.5 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 rounded-md transition-all shadow-sm group"
+                              title="Download HSN Audit"
+                            >
+                              <Printer size={14} className="group-hover:scale-110 transition-transform" />
+                            </button>
+                            <button className="p-1.5 text-slate-300 hover:text-blue-600 bg-white border border-slate-100 rounded-md hover:border-blue-200 transition-all">
+                              <ArrowRight size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

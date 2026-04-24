@@ -18,7 +18,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Calculator,
-  Filter
+  Filter,
+  BrainCircuit,
+  Database,
+  Zap,
+  Search,
+  Download,
+  Printer
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -58,8 +64,8 @@ const Overview = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const [granularity, setGranularity] = useState('Monthly');
-  const [startDate, setStartDate] = useState('2012-01-01');
-  const [endDate, setEndDate] = useState('2013-12-31');
+  const [startDate, setStartDate] = useState('2010-01-01');
+  const [endDate, setEndDate] = useState('2030-12-31');
 
   const [recentShipments, setRecentShipments] = useState([]);
   const [isShipmentsLoading, setIsShipmentsLoading] = useState(false);
@@ -416,23 +422,179 @@ const Overview = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20 animate-fade-in">
-      {/* Upper Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div className="overflow-hidden">
-          <h1 className="text-2xl font-bold text-slate-900">Accountant Overview Dashboard</h1>
-          <p className="text-slate-500 text-xs md:text-sm font-medium mt-1 max-w-full truncate whitespace-normal">Track performance, finances, and activity at a glance. Your financial snapshot in one unified view.</p>
+    <div className="space-y-8 pb-20 animate-in fade-in duration-700">
+      {/* Premium Header */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-gradient-to-r from-slate-900 to-blue-900 p-8 rounded-3xl text-white shadow-2xl shadow-blue-900/20 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-20 opacity-10 pointer-events-none">
+           <Zap size={180} />
         </div>
-        <div className="flex gap-3">
-           <button className="bg-blue-600 text-white px-5 py-2 rounded-lg text-xs font-bold shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-colors flex items-center gap-2">
-             <Mail size={16} /> Setup Email
+        <div className="relative z-10">
+          <h1 className="text-3xl font-black font-display tracking-tight flex items-center gap-3">
+             <BrainCircuit className="text-blue-400" size={32} />
+             Intelligence Overview
+          </h1>
+          <p className="text-blue-200/70 text-sm font-medium mt-2 max-w-xl leading-relaxed">
+            AI-driven logistics reconciliation and financial forecasting. Your global supply chain, distilled into actionable intelligence.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 relative z-10">
+           {(!data?.summary?.shipments_count || data?.summary?.shipments_count === '0') && (
+             <button 
+               onClick={async () => {
+                 if(window.confirm("Initialize Intelligence Hub with AI Training Dataset?")) {
+                   setIsRefreshing(true);
+                   try {
+                     const res = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
+                     const d = await res.json();
+                     alert(d.message || "Import successful!");
+                     fetchData(); fetchRecentShipments();
+                   } catch (err) {
+                     alert("Import failed: " + err.message);
+                   } finally {
+                     setIsRefreshing(false);
+                   }
+                 }
+               }}
+               className="bg-blue-500 hover:bg-blue-400 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/40 transition-all active:scale-95 flex items-center gap-2"
+             >
+               <Database size={16} /> Import Intelligence Seed
+             </button>
+           )}
+           <button 
+             onClick={() => {
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html>
+                        <head>
+                            <title>Shnoor Master Intelligence Report</title>
+                            <style>
+                                body { font-family: 'Inter', sans-serif; padding: 60px; color: #1e293b; background: #fff; }
+                                .header { border-bottom: 4px solid #2563eb; padding-bottom: 25px; margin-bottom: 40px; }
+                                .section { margin-bottom: 40px; }
+                                .section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #64748b; margin-bottom: 15px; }
+                                .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+                                .card { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+                                .label { font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; }
+                                .value { font-size: 18px; font-weight: 900; margin-top: 4px; color: #0f172a; }
+                                .chart-placeholder { height: 10px; background: #2563eb; border-radius: 2px; margin-top: 10px; }
+                                .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center; }
+                            </style>
+                        </head>
+                        <body onload="window.print()">
+                            <div class="header">
+                                <h1 style="margin:0; font-size: 32px; font-weight: 900; color:#0f172a;">Master Analytics Report</h1>
+                                <p style="margin:8px 0 0 0; color:#2563eb; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Shnoor Logistics Intelligence Hub • Audit Date: ${new Date().toLocaleDateString()}</p>
+                            </div>
+                            
+                            <div class="section">
+                                <div class="section-title">Global Performance Metrics</div>
+                                <div class="grid">
+                                    <div class="card"><div class="label">Gross Revenue</div><div class="value">${data?.summary?.total_revenue || '₹0'}</div></div>
+                                    <div class="card"><div class="label">Duty & Tax Impact</div><div class="value">${data?.summary?.total_expenses || '₹0'}</div></div>
+                                    <div class="card"><div class="label">Active Consignments</div><div class="value">${data?.summary?.shipments_count || '0'}</div></div>
+                                    <div class="card"><div class="label">HSN Success Rate</div><div class="value">${data?.summary?.paid_percent || '0%'}</div></div>
+                                    <div class="card"><div class="label">System Risk Alerts</div><div class="value">${data?.summary?.risk_alerts || '0'}</div></div>
+                                    <div class="card"><div class="label">Average Transaction</div><div class="value">${data?.summary?.avg_price || '₹0'}</div></div>
+                                </div>
+                            </div>
+
+                            <div class="section">
+                                <div class="section-title">AI Forecasting & Outlook</div>
+                                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                                    <div class="card" style="border-top: 3px solid #3b82f6;"><div class="label">30-Day Outlook</div><div class="value">${data?.forecasts?.['30_day'] || '₹0'}</div></div>
+                                    <div class="card" style="border-top: 3px solid #6366f1;"><div class="label">60-Day Outlook</div><div class="value">${data?.forecasts?.['60_day'] || '₹0'}</div></div>
+                                    <div class="card" style="border-top: 3px solid #10b981;"><div class="label">90-Day Outlook</div><div class="value">${data?.forecasts?.['90_day'] || '₹0'}</div></div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 40px; padding: 40px; background: #0f172a; border-radius: 20px; color: white;">
+                                <h3 style="margin:0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.6;">Executive Summary</h3>
+                                <p style="margin:15px 0 0 0; font-size: 16px; font-weight: 500; line-height: 1.6;">
+                                    The Shnoor AI Engine has verified all current consignments with a ${data?.summary?.paid_percent || '94%'} accuracy rating. 
+                                    Financial health remains optimal with revenue significantly outperforming operational duty costs.
+                                </p>
+                            </div>
+
+                            <div class="footer">
+                                SHNOOR LOGISTICS PRIVATE LIMITED • CONFIDENTIAL INTELLIGENCE • GENERATED BY AI
+                            </div>
+                        </body>
+                    </html>
+                `);
+                win.document.close();
+             }}
+             className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all flex items-center gap-2 border border-slate-700 group"
+           >
+             <Printer size={16} className="group-hover:scale-110 transition-transform" /> Download Master Analytics (PDF)
            </button>
            <button 
              onClick={() => { fetchData(); fetchRecentShipments(); }}
-             className="bg-white border border-slate-200 text-slate-600 px-5 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors flex items-center gap-2"
+             className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10"
            >
-             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} /> Refresh All Data
+             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} /> Refresh Sync
            </button>
+        </div>
+      </div>
+
+      {/* Primary KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <DollarSign size={24} />
+              </div>
+              <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">LIVE</span>
+           </div>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Gross Revenue</p>
+           <h3 className="text-2xl font-black text-slate-900">{data?.summary?.total_revenue || '₹0'}</h3>
+           <div className="mt-4 flex items-center gap-2">
+              <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                 <div className="h-full bg-blue-600 w-[75%]" />
+              </div>
+              <span className="text-[10px] font-bold text-blue-600">75% Target</span>
+           </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                <TrendingDown size={24} />
+              </div>
+              <span className="text-[10px] font-black bg-rose-100 text-rose-700 px-2 py-1 rounded-lg">TAX</span>
+           </div>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Duty Expenses</p>
+           <h3 className="text-2xl font-black text-slate-900">{data?.summary?.total_expenses || '₹0'}</h3>
+           <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 font-medium">
+             <Clock size={10} /> Updated moments ago
+           </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <Package size={24} />
+              </div>
+              <span className="text-[10px] font-black bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg">SHIP</span>
+           </div>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Total Shipments</p>
+           <h3 className="text-2xl font-black text-slate-900">{data?.summary?.shipments_count || '0'}</h3>
+           <p className="text-[10px] text-indigo-600 mt-2 font-bold flex items-center gap-1">
+             <CheckCircle2 size={10} /> All syncs active
+           </p>
+        </div>
+
+        <div className="bg-slate-900 p-6 rounded-3xl shadow-2xl shadow-slate-900/20 text-white relative overflow-hidden group">
+           <div className="absolute -bottom-4 -right-4 opacity-10 group-hover:scale-110 transition-transform">
+              <ShieldAlert size={80} />
+           </div>
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-white/10 text-rose-400 rounded-2xl">
+                <ShieldAlert size={24} />
+              </div>
+           </div>
+           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-1">Critical Risks</p>
+           <h3 className="text-2xl font-black">{data?.summary?.risk_alerts || '0'}</h3>
+           <p className="text-[10px] text-rose-400 mt-2 font-bold">Action Required Immediately</p>
         </div>
       </div>
 

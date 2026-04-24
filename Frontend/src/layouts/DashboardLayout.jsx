@@ -30,7 +30,7 @@ const DashboardLayout = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
-    navigate('/login');
+    navigate('/');
   };
 
   return (

@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +23,7 @@ async def upload_invoice(
     file_path, file_ext = save_upload_file(file)
 
     new_doc = Document(
-        file_url=file.filename, 
+        file_url=file_path, # Store the actual path for retrieval
         status="Processing", 
         doc_type="invoice",
         shipment_id=shipment_id
@@ -43,11 +44,27 @@ async def upload_invoice(
         id=new_doc.id,
         status=new_doc.status,
         message="Invoice uploaded and is processing in the background.",
-        file_url=new_doc.file_url,
+        file_url=file.filename, # Show display name in response
         shipment_id=new_doc.shipment_id,
         extracted_data=new_doc.extracted_data,
         created_at=new_doc.created_at,
     )
+
+
+@router.get("/download/{doc_id}")
+async def download_document(doc_id: int, db: AsyncSession = Depends(get_db)):
+    from fastapi.responses import FileResponse
+    document = await db.get(Document, doc_id)
+    if not document or not document.file_url:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # In this app, file_url stores the internal path
+    if not os.path.exists(document.file_url):
+         # If file was deleted after processing (as in current service.py logic)
+         # We need to change service.py to KEEP the file if we want downloads.
+         raise HTTPException(status_code=404, detail="Physical file no longer exists")
+         
+    return FileResponse(document.file_url, filename=os.path.basename(document.file_url))
 
 
 @router.get("/", response_model=list[DocumentResponse])
