@@ -18,19 +18,21 @@ RISK_SERVICE_URL = os.getenv("RISK_SERVICE_URL", f"http://127.0.0.1:{PORT}")
 router = APIRouter(prefix="/shipments", tags=["Shipments"])
 
 async def trigger_ai_pipeline(shipment_id: int, product_name: str):
+    import asyncio
     async with httpx.AsyncClient() as client:
-        # 1. HSN
-        await client.post(f"{HSN_SERVICE_URL}/hsn/", json={
-            "product_name": product_name, "shipment_id": shipment_id, "persist_result": True
-        })
-        # 2. Duty
-        await client.post(f"{DUTY_SERVICE_URL}/duty/", json={
-            "shipment_id": shipment_id, "persist_result": True
-        })
-        # 3. Risk
-        await client.post(f"{RISK_SERVICE_URL}/risk/assess/", json={
-            "shipment_id": shipment_id, "persist_result": True
-        })
+        # Trigger all analyses in parallel for faster completion
+        tasks = [
+            client.post(f"{HSN_SERVICE_URL}/hsn/", json={
+                "product_name": product_name, "shipment_id": shipment_id, "persist_result": True
+            }),
+            client.post(f"{DUTY_SERVICE_URL}/duty/", json={
+                "shipment_id": shipment_id, "persist_result": True
+            }),
+            client.post(f"{RISK_SERVICE_URL}/risk/assess/", json={
+                "shipment_id": shipment_id, "persist_result": True
+            })
+        ]
+        await asyncio.gather(*tasks)
 
 @router.post("/", response_model=ShipmentResponse)
 async def create_shipment(

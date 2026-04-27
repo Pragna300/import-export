@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import schemas, service, utils
@@ -150,9 +150,11 @@ async def login_json(
         refresh_token=refresh_token,
         token_type="bearer"
     )
+
 @router.post("/forgot-password")
 async def forgot_password(
     request_data: schemas.ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
     """Simulate sending a password reset email by logging to terminal"""
@@ -167,13 +169,11 @@ async def forgot_password(
         expires_delta=30 # 30 minutes
     )
     
-    # Simulate sending email
+    # Send real email in the background for faster response time
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
     reset_link = f"{frontend_url}/reset-password?token={reset_token}"
-    print("\n" + "="*50)
-    print(f"PASSWORD RESET REQUEST FOR: {user.email}")
-    print(f"RESET LINK: {reset_link}")
-    print("="*50 + "\n")
+    
+    background_tasks.add_task(utils.send_reset_email, user.email, reset_link)
     
     return {"message": "If an account with that email exists, a reset link has been sent."}
 

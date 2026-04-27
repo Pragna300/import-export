@@ -10,6 +10,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  const query = new URLSearchParams(window.location.search);
+  const wasRegistered = query.get('registered');
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -72,6 +75,11 @@ const Login = () => {
           </div>
 
           <div className="space-y-2">
+            {wasRegistered && (
+              <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl font-bold animate-in slide-in-from-top-2 mb-4">
+                Registration Successful! Please login.
+              </div>
+            )}
             <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Login.</h2>
             <p className="text-slate-500 font-medium text-sm md:text-base">Please enter your corporate credentials to continue.</p>
           </div>

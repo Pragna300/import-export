@@ -5,10 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.models import Shipment, ShipmentTracking, HSNClassification, Duty, RiskAssessment
 from dotenv import load_dotenv
+# Load env once at startup
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(env_path)
+
 def get_api_key():
-    # Force reload from .env in the parent directory of this file
-    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-    load_dotenv(env_path)
     return os.getenv("OPEN_ROUTER_API_KEY")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"

@@ -48,8 +48,8 @@ export default function Register() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Account created successfully! Please login to continue.');
-        navigate('/login');
+        // Show success state briefly or navigate immediately
+        navigate('/login?registered=true');
       } else {
         // Handle backend error messages
         setError(data.detail || 'Registration failed. Please try again.');

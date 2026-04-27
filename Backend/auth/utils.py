@@ -4,6 +4,7 @@ import bcrypt
 from starlette.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 import os
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 
 load_dotenv()
 
@@ -35,8 +36,8 @@ async def get_password_hash(password: str) -> str:
         # Safely truncate to 71 bytes
         pw_bytes = pw_bytes[:71]
     
-    # Generate salt and hash
-    salt = await run_in_threadpool(bcrypt.gensalt)
+    # Generate salt (using 10 rounds for faster performance in demo/dev) and hash
+    salt = await run_in_threadpool(bcrypt.gensalt, rounds=10)
     hashed = await run_in_threadpool(bcrypt.hashpw, pw_bytes, salt)
     return hashed.decode('utf-8')
 
@@ -75,3 +76,60 @@ def verify_refresh_token(token: str):
         return payload
     except JWTError:
         return None
+
+# --- EMAIL CONFIGURATION ---
+
+async def send_reset_email(email: str, reset_link: str):
+    """Send a real password reset email asynchronously"""
+    # Clean password from spaces (sometimes copied with spaces from Google)
+    mail_password = os.getenv("MAIL_PASSWORD", "").replace(" ", "")
+    
+    conf = ConnectionConfig(
+        MAIL_USERNAME = os.getenv("MAIL_USERNAME", ""),
+        MAIL_PASSWORD = mail_password,
+        MAIL_FROM = os.getenv("MAIL_FROM", "support@shnoor.com"),
+        MAIL_PORT = int(os.getenv("MAIL_PORT", 587)),
+        MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
+        MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "Shnoor Logistics"),
+        MAIL_STARTTLS = True,
+        MAIL_SSL_TLS = False,
+        USE_CREDENTIALS = True,
+        VALIDATE_CERTS = True
+    )
+
+    html = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #2563eb;">Password Reset Request</h2>
+            <p>Hello,</p>
+            <p>We received a request to reset your password for your Shnoor Logistics account. Click the button below to proceed:</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{reset_link}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+            </div>
+            <p>If you didn't request this, you can safely ignore this email. This link will expire in 30 minutes.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 12px; color: #777;">Shnoor International Logistics &copy; 2026</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    message = MessageSchema(
+        subject="Password Reset Request - Shnoor Logistics",
+        recipients=[email],
+        body=html,
+        subtype=MessageType.html
+    )
+
+    fm = FastMail(conf)
+    try:
+        await fm.send_message(message)
+        print(f"✅ EMAIL SENT SUCCESSFULLY to {email}")
+        return True
+    except Exception as e:
+        print("\n" + "!"*50)
+        print(f"❌ EMAIL SENDING FAILED to {email}")
+        print(f"ERROR: {str(e)}")
+        print("!"*50 + "\n")
+        return False
