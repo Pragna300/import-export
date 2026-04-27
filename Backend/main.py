@@ -12,6 +12,8 @@ from sqlalchemy import text
 
 from database import engine, Base, get_db
 from tracking_service.service import listen_to_pg_tracking
+from logger import log
+import time
 
 # ✅ IMPORTANT: Import all models into Base.metadata so tables get registered
 import models.models # This ensures Shipment, Document, Tracking etc. are seen by Base
@@ -49,6 +51,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ✅ REQUEST LOGGING MIDDLEWARE
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    
+    log.info(
+        f"{request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s"
+    )
+    return response
 
 # Routers
 app.include_router(auth_router)
@@ -94,11 +108,11 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 @app.on_event("startup")
 async def startup():
     try:
-        print("🚀 Starting app...")
+        log.info("🚀 Starting Shnoor Unified Gateway...")
 
         # 🚀 ROBUST STARTUP: Ensure tables exist (Fast)
         async with engine.connect() as conn:
-            print("📦 Ensuring tables exist...")
+            log.info("📦 Ensuring database tables exist...")
             await conn.run_sync(Base.metadata.create_all)
             await conn.commit()
 
@@ -123,31 +137,30 @@ async def startup():
                     """
                     await conn.execute(text(fast_sync_sql))
                     await conn.commit()
-                    print("✅ Background Sync: Database fully optimized.")
+                    log.info("✅ Background Sync: Database fully optimized.")
             except Exception as e:
-                print(f"⚠️ Background Sync Failed: {e}")
+                log.error(f"⚠️ Background Sync Failed: {e}")
 
         asyncio.create_task(sync_columns_background())
-        print("✅ Database initialization scheduled")
+        log.info("✅ Database initialization scheduled")
 
         # Start the live tracking background task
         asyncio.create_task(listen_to_pg_tracking())
-        print("✅ Live tracking listener initialized")
+        log.info("✅ Live tracking listener initialized")
 
         # 🚀 OPTIMIZATION: Model pre-loading is disabled for faster startup.
         # It will load lazily when the first HSN prediction is requested.
         # from hsn_service.service import load_hsn_model
         # load_hsn_model()
-        print("⚡ Startup optimized: AI models will load lazily")
+        log.info("⚡ Startup optimized: AI models will load lazily")
 
     except Exception as e:
-        print("❌ Startup error:", e)
+        log.error(f"❌ Startup error: {e}")
 
 # ✅ FIXED EXCEPTION HANDLER
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
-    print("=== GATEWAY ERROR ===")
-    print(traceback.format_exc())
+    log.error(f"=== GATEWAY ERROR ===\n{traceback.format_exc()}")
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error"},

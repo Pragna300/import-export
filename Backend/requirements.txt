@@ -26,3 +26,4 @@ gensim
 fastapi-mail
 google-auth
 requests
+loguru
