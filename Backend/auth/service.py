@@ -3,6 +3,13 @@ from sqlalchemy.future import select
 from fastapi import HTTPException, status
 from . import schemas, utils
 from models.models import User
+from google.oauth2 import id_token
+from google.auth.transport import requests
+import os
+
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+
 
 async def authenticate_user(db: AsyncSession, email: str, password: str):
     """Authenticate user asynchronously"""
@@ -69,3 +76,14 @@ async def update_user_password(db: AsyncSession, user: User, new_password: str):
     await db.commit()
     await db.refresh(user)
     return user
+
+async def verify_google_token(token: str):
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            token,
+            requests.Request(),
+            GOOGLE_CLIENT_ID
+        )
+        return idinfo
+    except Exception:
+        return None

@@ -199,3 +199,54 @@ async def reset_password(
     await service.update_user_password(db, user, reset_data.new_password)
     
     return {"message": "Password successfully reset. You can now login with your new password."}
+
+
+@router.post("/google-login")
+async def google_login(
+    token_data: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    id_token_str = token_data.get("token")
+
+    if not id_token_str:
+        raise HTTPException(status_code=400, detail="Token missing")
+
+    # Verify token
+    google_user = await service.verify_google_token(id_token_str)
+
+    if not google_user:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    email = google_user.get("email")
+    name = google_user.get("name")
+
+    # Optional: domain restriction
+    if not email.endswith("@shnoor.com"):
+        raise HTTPException(status_code=403, detail="Only company emails allowed")
+
+    # Check if user exists
+    user = await service.get_user_by_email(db, email)
+
+    if not user:
+        # Create user WITHOUT password
+        user_data = schemas.UserCreate(
+            name=name,
+            email=email,
+            password="google_oauth_dummy",  # not used
+            role="user"
+        )
+        user = await service.create_user(db, user_data)
+
+    # Generate tokens (reuse your system ✅)
+    access_token = utils.create_access_token(
+        data={"sub": user.email, "user_id": user.id}
+    )
+    refresh_token = utils.create_refresh_token(
+        data={"sub": user.email, "user_id": user.id}
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
