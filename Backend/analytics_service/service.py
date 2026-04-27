@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, extract
+from sqlalchemy import func, extract, case, text
 from models.models import Shipment, Document, HSNClassification, RiskAssessment, Duty
 
 async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_date: str = None):
@@ -39,51 +39,63 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
             stmt = stmt.where(date_col <= end_dt)
         return stmt
 
-    # Parallel execution for maximum performance on Render
-    import asyncio
+    # 🚀 INITIALIZE DEFAULTS (Prevent UnboundLocalError)
+    shipments_count = docs_count = risk_alerts = 0
+    total_revenue_val = total_expenses_val = paid_amount = 0
+    hsn_classified_count = peak_value_val = min_price_val = 0
+    duty_sum = tax_sum = other_sum = 0
+
+    # Grouped execution to avoid concurrent session errors while maintaining efficiency
     try:
-        # Define all query tasks
-        tasks = [
-            db.execute(apply_filters(select(func.count(Shipment.id)), Shipment)), # 0: shipments_count
-            db.execute(apply_filters(select(func.count(Document.id)), Document)), # 1: docs_count
-            db.execute(apply_filters(select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High'), RiskAssessment)), # 2: risk_alerts
-            db.execute(apply_filters(select(func.sum(Shipment.total_value)), Shipment)), # 3: total_revenue
-            db.execute(apply_filters(select(func.sum(Duty.total_cost)), Duty)), # 4: total_expenses
-            db.execute(apply_filters(select(func.sum(Shipment.total_value)).where(Shipment.status == 'Delivered'), Shipment)), # 5: paid_amount
-            db.execute(apply_filters(select(func.count(HSNClassification.id)), HSNClassification)), # 6: hsn_count
-            db.execute(apply_filters(select(func.min(Shipment.unit_price)), Shipment)), # 7: min_price
-            db.execute(apply_filters(select(func.max(Shipment.total_value)), Shipment)), # 8: peak_value
-            db.execute(apply_filters(select(
-                func.sum(Duty.duty_amount),
-                func.sum(Duty.tax_amount),
-                func.sum(Duty.other_charges)
-            ), Duty)) # 9: duty_breakdown
-        ]
+        # 1. Shipment Metrics
+        shp_stmt = apply_filters(select(
+            func.count(Shipment.id),
+            func.sum(Shipment.total_value),
+            func.min(Shipment.unit_price),
+            func.max(Shipment.total_value),
+            func.sum(case((Shipment.status == 'Delivered', Shipment.total_value), else_=0))
+        ), Shipment)
+        shp_res = await db.execute(shp_stmt)
+        shp_row = shp_res.first()
         
-        # Run all queries in parallel
-        results = await asyncio.gather(*tasks)
+        if shp_row:
+            shipments_count = shp_row[0] or 0
+            total_revenue_val = float(shp_row[1] or 0)
+            min_price_val = float(shp_row[2] or 0)
+            peak_value_val = float(shp_row[3] or 0)
+            paid_amount = float(shp_row[4] or 0)
+
+        # 2. Duty Metrics
+        duty_stmt = apply_filters(select(
+            func.sum(Duty.total_cost),
+            func.sum(Duty.duty_amount),
+            func.sum(Duty.tax_amount),
+            func.sum(Duty.other_charges)
+        ), Duty)
+        duty_res = await db.execute(duty_stmt)
+        duty_row = duty_res.first()
         
-        shipments_count = results[0].scalar() or 0
-        docs_count = results[1].scalar() or 0
-        risk_alerts = results[2].scalar() or 0
-        total_revenue_val = float(results[3].scalar() or 0)
-        total_expenses_val = float(results[4].scalar() or 0)
-        paid_amount = float(results[5].scalar() or 0)
-        hsn_classified_count = results[6].scalar() or 0
-        min_price_val = float(results[7].scalar() or 0)
-        peak_value_val = float(results[8].scalar() or 0)
-        
-        cat_row = results[9].first()
-        duty_sum = float(cat_row[0] or 0)
-        tax_sum = float(cat_row[1] or 0)
-        other_sum = float(cat_row[2] or 0)
+        if duty_row:
+            total_expenses_val = float(duty_row[0] or 0)
+            duty_sum = float(duty_row[1] or 0)
+            tax_sum = float(duty_row[2] or 0)
+            other_sum = float(duty_row[3] or 0)
+
+        # 3. Document Count
+        docs_res = await db.execute(apply_filters(select(func.count(Document.id)), Document))
+        docs_count = docs_res.scalar() or 0
+
+        # 4. Risk Alerts
+        risk_res = await db.execute(apply_filters(select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High'), RiskAssessment))
+        risk_alerts = risk_res.scalar() or 0
+
+        # 5. HSN Count
+        hsn_res = await db.execute(apply_filters(select(func.count(HSNClassification.id)), HSNClassification))
+        hsn_classified_count = hsn_res.scalar() or 0
 
     except Exception as e:
-        print(f"❌ Parallel Query Error: {e}")
-        shipments_count = docs_count = risk_alerts = 0
-        total_revenue_val = total_expenses_val = paid_amount = 0
-        hsn_classified_count = peak_value_val = 0
-        duty_sum = tax_sum = other_sum = 0
+        print(f"❌ Analytics Query Error: {e}")
+        # Defaults already set at top
 
     pending_amount = total_revenue_val - paid_amount
     growth_rate = 1.05 

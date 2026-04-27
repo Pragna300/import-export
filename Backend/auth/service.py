@@ -79,11 +79,14 @@ async def update_user_password(db: AsyncSession, user: User, new_password: str):
 
 async def verify_google_token(token: str):
     try:
+        print(f"🔍 Verifying Google Token with Client ID: {GOOGLE_CLIENT_ID[:10]}...")
         idinfo = id_token.verify_oauth2_token(
             token,
             requests.Request(),
-            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_ID,
+            clock_skew_in_seconds=10
         )
         return idinfo
-    except Exception:
+    except Exception as e:
+        print(f"❌ Google Token Verification Failed: {str(e)}")
         return None

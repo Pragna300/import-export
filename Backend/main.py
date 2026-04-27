@@ -96,30 +96,49 @@ async def startup():
     try:
         print("🚀 Starting app...")
 
-        async with engine.begin() as conn:
+        # 🚀 ROBUST STARTUP: Ensure tables exist (Fast)
+        async with engine.connect() as conn:
+            print("📦 Ensuring tables exist...")
             await conn.run_sync(Base.metadata.create_all)
-            
-            # 🔄 AUTO-SYNC: Add missing columns if they don't exist
-            print("🔄 Synchronizing database schema...")
-            try:
-                await conn.execute(text("ALTER TABLE duties ADD COLUMN IF NOT EXISTS status VARCHAR(50);"))
-                await conn.execute(text("ALTER TABLE shipments ADD COLUMN IF NOT EXISTS created_by VARCHAR(100);"))
-                # Add doc_type to documents
-                await conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS doc_type VARCHAR(50);"))
-                print("✅ Database columns synchronized.")
-            except Exception as sync_err:
-                print(f"⚠️ Schema sync warning: {sync_err}")
+            await conn.commit()
 
-        print("✅ Tables created successfully")
+        # 🔄 BACKGROUND SYNC: Add missing columns in a single fast block
+        async def sync_columns_background():
+            try:
+                async with engine.connect() as conn:
+                    print("🔄 Background Sync: Running fast schema update...")
+                    fast_sync_sql = """
+                    DO $$ 
+                    BEGIN 
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='duties' AND column_name='status') THEN
+                            ALTER TABLE duties ADD COLUMN status VARCHAR(50);
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shipments' AND column_name='created_by') THEN
+                            ALTER TABLE shipments ADD COLUMN created_by VARCHAR(100);
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='doc_type') THEN
+                            ALTER TABLE documents ADD COLUMN doc_type VARCHAR(50);
+                        END IF;
+                    END $$;
+                    """
+                    await conn.execute(text(fast_sync_sql))
+                    await conn.commit()
+                    print("✅ Background Sync: Database fully optimized.")
+            except Exception as e:
+                print(f"⚠️ Background Sync Failed: {e}")
+
+        asyncio.create_task(sync_columns_background())
+        print("✅ Database initialization scheduled")
 
         # Start the live tracking background task
         asyncio.create_task(listen_to_pg_tracking())
         print("✅ Live tracking listener initialized")
 
-        # 🚀 PRE-LOAD HSN MODEL
-        from hsn_service.service import load_hsn_model
-        load_hsn_model()
-        print("✅ HSN Model pre-loaded")
+        # 🚀 OPTIMIZATION: Model pre-loading is disabled for faster startup.
+        # It will load lazily when the first HSN prediction is requested.
+        # from hsn_service.service import load_hsn_model
+        # load_hsn_model()
+        print("⚡ Startup optimized: AI models will load lazily")
 
     except Exception as e:
         print("❌ Startup error:", e)

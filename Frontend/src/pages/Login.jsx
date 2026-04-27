@@ -86,19 +86,14 @@ const Login = () => {
       <div className="flex-1 bg-white flex items-center justify-center p-6 md:p-20">
         <div className="w-full max-w-sm space-y-8">
 
-          <div>
-            <h2 className="text-3xl font-black text-slate-900">Login</h2>
-            <p className="text-slate-500">Use your credentials or Google account</p>
-          </div>
-
           <div className="space-y-2">
             {wasRegistered && (
               <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl font-bold animate-in slide-in-from-top-2 mb-4">
                 Registration Successful! Please login.
               </div>
             )}
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Login.</h2>
-            <p className="text-slate-500 font-medium text-sm md:text-base">Please enter your corporate credentials to continue.</p>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Login</h2>
+            <p className="text-slate-500 font-medium">Use your corporate credentials or Google account to continue.</p>
           </div>
 
           {/* ✅ Google Button */}
