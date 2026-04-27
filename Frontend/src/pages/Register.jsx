@@ -1,26 +1,55 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ChevronDown, User, LogIn, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2 } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import config from '../config';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('Admin');
+  const [role] = useState('Admin');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const navigate = useNavigate();
 
+  // ✅ Google Register/Login (same flow)
+  const handleGoogleRegister = async (credentialResponse) => {
+    try {
+      const res = await fetch(`${config.API_BASE_URL}/auth/google-login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          token: credentialResponse.credential
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem("access_token", data.access_token);
+        navigate("/dashboard");
+      } else {
+        setError(data.detail || "Google signup failed");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Google signup error");
+    }
+  };
+
+  // ✅ Manual Register
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // Basic Validations
     if (!email.toLowerCase().endsWith("@shnoor.com")) {
-      setError('Registration is restricted to employees with @shnoor.com email addresses.');
+      setError('Only @shnoor.com emails allowed');
       return;
     }
 
@@ -34,9 +63,7 @@ export default function Register() {
     try {
       const response = await fetch(`${config.API_BASE_URL}/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
           email,
@@ -48,124 +75,115 @@ export default function Register() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Account created successfully! Please login to continue.');
+        alert('Account created! Please login.');
         navigate('/login');
       } else {
-        // Handle backend error messages
-        setError(data.detail || 'Registration failed. Please try again.');
+        setError(data.detail || 'Registration failed');
       }
     } catch (err) {
-      console.error('Registration Error:', err);
-      setError('Could not connect to the server. Please ensure the backend is running.');
+      console.error(err);
+      setError('Server error');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] relative p-4 py-8">
-      <div className="w-full max-w-[420px] p-6 md:p-10 bg-white rounded-[24px] shadow-sm border border-[#F1DDC8]">
-        <h2 className="text-2xl md:text-[28px] font-bold text-center text-slate-900 mb-8 tracking-tight">Create Account</h2>
-        
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-4">
+      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow">
+
+        <h2 className="text-2xl font-bold text-center mb-6">Create Account</h2>
+
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl font-medium flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-red-600 rounded-full"></span>
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded">
             {error}
           </div>
         )}
 
+        {/* ✅ Google Button */}
+        <div className="flex justify-center mb-4">
+          <GoogleLogin
+            onSuccess={handleGoogleRegister}
+            onError={() => setError("Google Signup Failed")}
+          />
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex-1 h-px bg-gray-200"></div>
+          <span className="text-xs text-gray-400">OR</span>
+          <div className="flex-1 h-px bg-gray-200"></div>
+        </div>
+
+        {/* Manual Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          
-          {/* Name Input */}
-          <div className="flex border border-[#e8d5c4] rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#1D3260] transition-shadow">
-            <div className="px-4 py-3 md:py-3.5 bg-white flex items-center justify-center">
-              <User className="h-5 w-5 text-slate-500" strokeWidth={1.5} />
-            </div>
-            <input 
-              type="text" 
-              placeholder="Full Name" 
+
+          <div className="flex border rounded-xl">
+            <User className="m-3 text-gray-400"/>
+            <input
+              type="text"
+              placeholder="Full Name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="flex-1 px-3 py-3 md:py-3.5 bg-[#eef3fb] text-slate-800 placeholder-slate-400 outline-none w-full font-medium"
+              className="flex-1 p-3 outline-none"
             />
           </div>
 
-          {/* Email Input */}
-          <div className="flex border border-[#e8d5c4] rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#1D3260] transition-shadow">
-            <div className="px-4 py-3 md:py-3.5 bg-white flex items-center justify-center">
-              <Mail className="h-5 w-5 text-slate-500" strokeWidth={1.5} />
-            </div>
-            <input 
-              type="email" 
-              placeholder="@shnoor.com Work Email" 
+          <div className="flex border rounded-xl">
+            <Mail className="m-3 text-gray-400"/>
+            <input
+              type="email"
+              placeholder="@shnoor.com Email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 px-3 py-3 md:py-3.5 bg-[#eef3fb] text-slate-800 placeholder-slate-400 outline-none w-full font-medium"
+              className="flex-1 p-3 outline-none"
             />
           </div>
 
-          {/* Password Input */}
-          <div className="flex border border-[#e8d5c4] rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#1D3260] transition-shadow">
-            <div className="px-4 py-3 md:py-3.5 bg-white flex items-center justify-center">
-              <Lock className="h-5 w-5 text-slate-500" strokeWidth={1.5} />
-            </div>
-            <input 
-              type="password" 
-              placeholder="Password" 
+          <div className="flex border rounded-xl">
+            <Lock className="m-3 text-gray-400"/>
+            <input
+              type="password"
+              placeholder="Password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="flex-1 px-3 py-3 md:py-3.5 bg-[#eef3fb] text-slate-800 placeholder-slate-400 outline-none w-full font-medium"
+              className="flex-1 p-3 outline-none"
             />
           </div>
 
-          {/* Confirm Password Input */}
-          <div className="flex border border-[#e8d5c4] rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#1D3260] transition-shadow">
-            <div className="px-4 py-3 md:py-3.5 bg-white flex items-center justify-center">
-              <Lock className="h-5 w-5 text-slate-500" strokeWidth={1.5} />
-            </div>
-            <input 
-              type="password" 
-              placeholder="Confirm Password" 
+          <div className="flex border rounded-xl">
+            <Lock className="m-3 text-gray-400"/>
+            <input
+              type="password"
+              placeholder="Confirm Password"
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="flex-1 px-3 py-3 md:py-3.5 bg-[#eef3fb] text-slate-800 placeholder-slate-400 outline-none w-full font-medium"
+              className="flex-1 p-3 outline-none"
             />
           </div>
 
-          {/* Submit Button */}
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isLoading}
-            className="w-full !mt-6 bg-[#203461] text-white font-bold py-4 px-4 rounded-xl hover:bg-[#15254a] transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1D3260] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-blue-900/10"
+            className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                Register Account
-              </>
-            )}
+            {isLoading ? <Loader2 className="animate-spin mx-auto"/> : "Register"}
           </button>
         </form>
 
-        {/* Footer links */}
-        <div className="mt-8 text-center space-y-4">
-          <p className="text-[15px] text-[#203461]">
-            <span className="text-slate-500">Already have an account?</span> <Link to="/login" className="font-semibold hover:underline ml-1">Login</Link>
-          </p>
-          <div className="flex flex-col gap-2 pt-2 text-[14px] text-slate-500">
-            <Link to="/terms" className="hover:text-slate-800 transition-colors">Terms and Conditions</Link>
-            <Link to="/privacy" className="hover:text-slate-800 transition-colors">Privacy Policy</Link>
-          </div>
-        </div>
+        <p className="text-center mt-6 text-sm">
+          Already have an account?{" "}
+          <Link to="/login" className="text-blue-600 font-bold">
+            Login
+          </Link>
+        </p>
+
       </div>
     </div>
   );
 }
+
