@@ -2,6 +2,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, extract, case, text
 from models.models import Shipment, Document, HSNClassification, RiskAssessment, Duty
+import asyncio
+from database import async_session
+
+async def fetch_query(stmt, fetch_type="scalar"):
+    """Execute a query in an isolated session to allow concurrency."""
+    async with async_session() as session:
+        try:
+            res = await session.execute(stmt)
+            if fetch_type == "scalar":
+                return res.scalar()
+            elif fetch_type == "first":
+                return res.first()
+            else:
+                return res.all()
+        except Exception as e:
+            print(f"Concurrent Query Error: {e}")
+            return None
 
 async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_date: str = None):
     from datetime import datetime
@@ -45,57 +62,67 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
     hsn_classified_count = peak_value_val = min_price_val = 0
     duty_sum = tax_sum = other_sum = 0
 
-    # Grouped execution to avoid concurrent session errors while maintaining efficiency
-    try:
-        # 1. Shipment Metrics
-        shp_stmt = apply_filters(select(
-            func.count(Shipment.id),
-            func.sum(Shipment.total_value),
-            func.min(Shipment.unit_price),
-            func.max(Shipment.total_value),
-            func.sum(case((Shipment.status == 'Delivered', Shipment.total_value), else_=0))
-        ), Shipment)
-        shp_res = await db.execute(shp_stmt)
-        shp_row = shp_res.first()
-        
-        if shp_row:
-            shipments_count = shp_row[0] or 0
-            total_revenue_val = float(shp_row[1] or 0)
-            min_price_val = float(shp_row[2] or 0)
-            peak_value_val = float(shp_row[3] or 0)
-            paid_amount = float(shp_row[4] or 0)
+    # Grouped execution using asyncio.gather for parallel processing
+    shp_stmt = apply_filters(select(
+        func.count(Shipment.id),
+        func.sum(Shipment.total_value),
+        func.min(Shipment.unit_price),
+        func.max(Shipment.total_value),
+        func.sum(case((Shipment.status == 'Delivered', Shipment.total_value), else_=0))
+    ), Shipment)
+    
+    duty_stmt = apply_filters(select(
+        func.sum(Duty.total_cost),
+        func.sum(Duty.duty_amount),
+        func.sum(Duty.tax_amount),
+        func.sum(Duty.other_charges)
+    ), Duty)
+    
+    docs_stmt = apply_filters(select(func.count(Document.id)), Document)
+    risk_stmt = apply_filters(select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High'), RiskAssessment)
+    hsn_stmt = apply_filters(select(func.count(HSNClassification.id)), HSNClassification)
+    
+    # History and Product Performance statements
+    hist_stmt = apply_filters(select(
+        extract('year', Shipment.created_at).label('year'),
+        extract('month', Shipment.created_at).label('month'),
+        func.sum(Shipment.total_value).label('revenue'),
+        func.count(Shipment.id).label('count')
+    ), Shipment).group_by(extract('year', Shipment.created_at), extract('month', Shipment.created_at)).order_by(extract('year', Shipment.created_at), extract('month', Shipment.created_at))
 
-        # 2. Duty Metrics
-        duty_stmt = apply_filters(select(
-            func.sum(Duty.total_cost),
-            func.sum(Duty.duty_amount),
-            func.sum(Duty.tax_amount),
-            func.sum(Duty.other_charges)
-        ), Duty)
-        duty_res = await db.execute(duty_stmt)
-        duty_row = duty_res.first()
-        
-        if duty_row:
-            total_expenses_val = float(duty_row[0] or 0)
-            duty_sum = float(duty_row[1] or 0)
-            tax_sum = float(duty_row[2] or 0)
-            other_sum = float(duty_row[3] or 0)
+    perf_stmt = apply_filters(select(
+        Shipment.product_name, 
+        func.count(Shipment.id).label('count'),
+        func.sum(Shipment.total_value).label('value')
+    ).group_by(Shipment.product_name), Shipment).limit(10)
 
-        # 3. Document Count
-        docs_res = await db.execute(apply_filters(select(func.count(Document.id)), Document))
-        docs_count = docs_res.scalar() or 0
+    # 🚀 Run all 7 database aggregates concurrently!
+    shp_row, duty_row, docs_val, risk_val, hsn_val, hist_rows, perf_rows = await asyncio.gather(
+        fetch_query(shp_stmt, "first"),
+        fetch_query(duty_stmt, "first"),
+        fetch_query(docs_stmt, "scalar"),
+        fetch_query(risk_stmt, "scalar"),
+        fetch_query(hsn_stmt, "scalar"),
+        fetch_query(hist_stmt, "all"),
+        fetch_query(perf_stmt, "all")
+    )
+    
+    if shp_row:
+        shipments_count = shp_row[0] or 0
+        total_revenue_val = float(shp_row[1] or 0)
+        min_price_val = float(shp_row[2] or 0)
+        peak_value_val = float(shp_row[3] or 0)
+        paid_amount = float(shp_row[4] or 0)
 
-        # 4. Risk Alerts
-        risk_res = await db.execute(apply_filters(select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High'), RiskAssessment))
-        risk_alerts = risk_res.scalar() or 0
+    if duty_row:
+        total_expenses_val = float(duty_row[0] or 0)
+        duty_sum = float(duty_row[1] or 0)
+        tax_sum = float(duty_row[2] or 0)
+        other_sum = float(duty_row[3] or 0)
 
-        # 5. HSN Count
-        hsn_res = await db.execute(apply_filters(select(func.count(HSNClassification.id)), HSNClassification))
-        hsn_classified_count = hsn_res.scalar() or 0
-
-    except Exception as e:
-        print(f"❌ Analytics Query Error: {e}")
-        # Defaults already set at top
+    docs_count = docs_val or 0
+    risk_alerts = risk_val or 0
+    hsn_classified_count = hsn_val or 0
 
     pending_amount = total_revenue_val - paid_amount
     growth_rate = 1.05 
@@ -115,47 +142,32 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         {"name": "Net Banking", "value": paid_amount * 0.1, "color": "#94a3b8"},
     ]
 
-    # History and Product Performance parallelization
-    hist_stmt = apply_filters(select(
-        extract('year', Shipment.created_at).label('year'),
-        extract('month', Shipment.created_at).label('month'),
-        func.sum(Shipment.total_value).label('revenue'),
-        func.count(Shipment.id).label('count')
-    ), Shipment).group_by(extract('year', Shipment.created_at), extract('month', Shipment.created_at)).order_by(extract('year', Shipment.created_at), extract('month', Shipment.created_at))
-
-    perf_stmt = apply_filters(select(
-        Shipment.product_name, 
-        func.count(Shipment.id).label('count'),
-        func.sum(Shipment.total_value).label('value')
-    ).group_by(Shipment.product_name), Shipment).limit(10)
-
-    hist_res = await db.execute(hist_stmt)
-    perf_res = await db.execute(perf_stmt)
-
     month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     history_series = []
-    for row in hist_res.all():
-        try:
-            year_val = int(row[0]) if row[0] is not None else 2024
-            month_idx = int(row[1]) if row[1] is not None else 1
-            
-            history_series.append({
-                "month": f"{month_names[month_idx]} {year_val}" if 0 < month_idx < 13 else f"{month_idx}/{year_val}",
-                "revenue": float(row[2] or 0),
-                "expenses": float(row[2] or 0) * 0.15,
-                "transactions": int(row[3] or 0)
-            })
-        except (ValueError, TypeError, IndexError):
-            continue
+    if hist_rows:
+        for row in hist_rows:
+            try:
+                year_val = int(row[0]) if row[0] is not None else 2024
+                month_idx = int(row[1]) if row[1] is not None else 1
+                
+                history_series.append({
+                    "month": f"{month_names[month_idx]} {year_val}" if 0 < month_idx < 13 else f"{month_idx}/{year_val}",
+                    "revenue": float(row[2] or 0),
+                    "expenses": float(row[2] or 0) * 0.15,
+                    "transactions": int(row[3] or 0)
+                })
+            except (ValueError, TypeError, IndexError):
+                continue
 
     product_performance = []
-    for row in perf_res.all():
-        product_performance.append({
-            "name": row[0],
-            "count": row[1],
-            "value": float(row[2] or 0),
-            "color": "#3b82f6"
-        })
+    if perf_rows:
+        for row in perf_rows:
+            product_performance.append({
+                "name": row[0],
+                "count": row[1],
+                "value": float(row[2] or 0),
+                "color": "#3b82f6"
+            })
 
     if not history_series:
         history_series = [{"month": "No Data", "revenue": 0, "expenses": 0, "transactions": 0}]
@@ -194,34 +206,44 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
     }
 
 async def get_risk_analytics(db: AsyncSession):
-    # Aggregated Risk Distribution
-    levels = ["High", "Medium", "Low"]
-    risk_dist = []
-    for level in levels:
-        count_res = await db.execute(select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == level))
-        risk_dist.append({"level": level, "count": count_res.scalar() or 0})
-
-    # Top Risk Shipments (Recent)
+    # Prepare statements
+    high_stmt = select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High')
+    med_stmt = select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'Medium')
+    low_stmt = select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'Low')
     top_risks_stmt = select(RiskAssessment, Shipment).join(Shipment).order_by(RiskAssessment.risk_score.desc()).limit(10)
-    result = await db.execute(top_risks_stmt)
+    duty_sum_stmt = select(func.sum(Duty.total_cost))
+    avg_score_stmt = select(func.avg(RiskAssessment.risk_score))
+
+    # Run concurrently
+    high_val, med_val, low_val, top_rows, duty_sum_val, avg_score_val = await asyncio.gather(
+        fetch_query(high_stmt, "scalar"),
+        fetch_query(med_stmt, "scalar"),
+        fetch_query(low_stmt, "scalar"),
+        fetch_query(top_risks_stmt, "all"),
+        fetch_query(duty_sum_stmt, "scalar"),
+        fetch_query(avg_score_stmt, "scalar")
+    )
+
+    risk_dist = [
+        {"level": "High", "count": high_val or 0},
+        {"level": "Medium", "count": med_val or 0},
+        {"level": "Low", "count": low_val or 0}
+    ]
+
     top_entries = []
-    for risk, shipment in result:
-        top_entries.append({
-            "id": risk.id,
-            "shipment": shipment.shipment_code,
-            "score": float(risk.risk_score),
-            "level": risk.risk_level,
-            "reason": risk.reason,
-            "duty": f"₹{float(risk.risk_score * 1000):,.0f}"
-        })
+    if top_rows:
+        for risk, shipment in top_rows:
+            top_entries.append({
+                "id": risk.id,
+                "shipment": shipment.shipment_code,
+                "score": float(risk.risk_score),
+                "level": risk.risk_level,
+                "reason": risk.reason,
+                "duty": f"₹{float(risk.risk_score * 1000):,.0f}"
+            })
 
-    # Total Duty metrics
-    duty_sum_res = await db.execute(select(func.sum(Duty.total_cost)))
-    total_duty = float(duty_sum_res.scalar() or 0)
-
-    # Real Avg Risk Score
-    avg_score_res = await db.execute(select(func.avg(RiskAssessment.risk_score)))
-    avg_score = float(avg_score_res.scalar() or 0)
+    total_duty = float(duty_sum_val or 0)
+    avg_score = float(avg_score_val or 0)
 
     return {
         "distribution": risk_dist,
@@ -234,33 +256,36 @@ async def get_risk_analytics(db: AsyncSession):
     }
 
 async def get_hsn_analytics(db: AsyncSession):
-    # Total classified items
-    total_res = await db.execute(select(func.count(HSNClassification.id)))
-    total = total_res.scalar() or 0
-
-    # Average confidence
-    avg_conf_res = await db.execute(select(func.avg(HSNClassification.confidence_score)))
-    avg_conf = float(avg_conf_res.scalar() or 0)
-
-    # Top classified products (most recent 50)
-    stmt = (
+    total_stmt = select(func.count(HSNClassification.id))
+    avg_conf_stmt = select(func.avg(HSNClassification.confidence_score))
+    top_stmt = (
         select(HSNClassification, Shipment)
         .join(Shipment, Shipment.id == HSNClassification.shipment_id)
         .order_by(HSNClassification.created_at.desc())
         .limit(50)
     )
-    result = await db.execute(stmt)
+
+    total_val, avg_conf_val, top_rows = await asyncio.gather(
+        fetch_query(total_stmt, "scalar"),
+        fetch_query(avg_conf_stmt, "scalar"),
+        fetch_query(top_stmt, "all")
+    )
+
+    total = total_val or 0
+    avg_conf = float(avg_conf_val or 0)
+
     items = []
-    for hsn, shipment in result:
-        items.append({
-            "id": hsn.id,
-            "product": shipment.product_name,
-            "hsn_code": hsn.hsn_code,
-            "confidence": float(hsn.confidence_score or 0),
-            "model_version": hsn.model_version or "Pipeline-v2.0",
-            "status": "Verified" if (hsn.confidence_score or 0) > 0.9 else "Review Needed",
-            "shipment_code": shipment.shipment_code,
-        })
+    if top_rows:
+        for hsn, shipment in top_rows:
+            items.append({
+                "id": hsn.id,
+                "product": shipment.product_name,
+                "hsn_code": hsn.hsn_code,
+                "confidence": float(hsn.confidence_score or 0),
+                "model_version": hsn.model_version or "Pipeline-v2.0",
+                "status": "Verified" if (hsn.confidence_score or 0) > 0.9 else "Review Needed",
+                "shipment_code": shipment.shipment_code,
+            })
 
     return {
         "total": total,

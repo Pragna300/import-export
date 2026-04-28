@@ -89,12 +89,6 @@ async def get_shipment_by_id(db: AsyncSession, shipment_id: int):
     if shipment:
         if shipment.hsn_classification:
             shipment.hsn_code = shipment.hsn_classification.hsn_code
-        shipment.ai_insight = await get_ai_insight(
-            shipment.product_name, 
-            shipment.origin_country, 
-            shipment.destination_country, 
-            shipment.status
-        )
     return shipment
 
 async def create_shipment_tracking(db: AsyncSession, shipment_id: int, status: str, location: str, remarks: str):

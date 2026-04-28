@@ -137,7 +137,20 @@ async def startup():
                         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='photo_url') THEN
                             ALTER TABLE users ADD COLUMN photo_url TEXT;
                         END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shipments' AND column_name='ai_insight') THEN
+                            ALTER TABLE shipments ADD COLUMN ai_insight TEXT;
+                        END IF;
                     END $$;
+
+                    -- Performance Indexes
+                    CREATE INDEX IF NOT EXISTS idx_shipments_created_at ON shipments(created_at);
+                    CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
+                    CREATE INDEX IF NOT EXISTS idx_documents_shipment_id ON documents(shipment_id);
+                    CREATE INDEX IF NOT EXISTS idx_tracking_shipment_id ON shipment_tracking(shipment_id);
+                    CREATE INDEX IF NOT EXISTS idx_risk_shipment_id ON risk_assessments(shipment_id);
+                    CREATE INDEX IF NOT EXISTS idx_risk_level ON risk_assessments(risk_level);
+                    CREATE INDEX IF NOT EXISTS idx_duty_shipment_id ON duties(shipment_id);
+                    CREATE INDEX IF NOT EXISTS idx_hsn_shipment_id ON hsn_classifications(shipment_id);
                     """
                     await conn.execute(text(fast_sync_sql))
                     await conn.commit()

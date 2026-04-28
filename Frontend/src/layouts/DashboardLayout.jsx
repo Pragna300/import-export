@@ -19,10 +19,19 @@ import {
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = React.useState(false);
-  const [userProfile, setUserProfile] = React.useState({ name: 'Loading...', role: '', email: '', photo_url: null });
+  const [userProfile, setUserProfile] = React.useState(() => {
+    const cachedProfile = localStorage.getItem('cached_user_profile');
+    if (cachedProfile) {
+      try { return JSON.parse(cachedProfile); } catch (e) { return { name: 'Loading...', role: '', email: '', photo_url: null }; }
+    }
+    return { name: 'Loading...', role: '', email: '', photo_url: null };
+  });
   const [isDropdownOpen, setDropdownOpen] = React.useState(false);
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
-  const [editForm, setEditForm] = React.useState({ name: '', photo_url: '' });
+  const [editForm, setEditForm] = React.useState({ 
+    name: userProfile.name !== 'Loading...' ? userProfile.name : '', 
+    photo_url: userProfile.photo_url || '' 
+  });
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -40,13 +49,20 @@ const DashboardLayout = () => {
         
         if (response.ok) {
           const data = await response.json();
-          setUserProfile({ 
+          const updatedProfile = { 
             name: data.name || data.email.split('@')[0], 
             role: data.role === 'user' ? 'employee' : data.role, 
             email: data.email,
             photo_url: data.photo_url 
+          };
+          setUserProfile(updatedProfile);
+          setEditForm({ 
+            name: updatedProfile.name, 
+            photo_url: updatedProfile.photo_url || '' 
           });
-          setEditForm({ name: data.name || '', photo_url: data.photo_url || '' });
+          
+          // Cache for instant loading next time
+          localStorage.setItem('cached_user_profile', JSON.stringify(updatedProfile));
         }
       } catch (error) {
         console.error("Failed to fetch user profile:", error);
@@ -70,12 +86,14 @@ const DashboardLayout = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        setUserProfile({ 
+        const updatedProfile = { 
           name: data.name || data.email.split('@')[0], 
           role: data.role === 'user' ? 'employee' : data.role,
           email: data.email,
           photo_url: data.photo_url
-        });
+        };
+        setUserProfile(updatedProfile);
+        localStorage.setItem('cached_user_profile', JSON.stringify(updatedProfile));
         setEditModalOpen(false);
       }
     } catch (error) {
@@ -94,6 +112,7 @@ const DashboardLayout = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('cached_user_profile');
     navigate('/');
   };
 
@@ -279,6 +298,17 @@ const DashboardLayout = () => {
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   placeholder="Enter your name"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                <input 
+                  type="email" 
+                  value={userProfile.email}
+                  disabled
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed outline-none transition-all"
+                />
+                <p className="text-[10px] text-slate-400 mt-1 italic">* Email address cannot be changed.</p>
               </div>
 
               <div className="text-center">

@@ -38,6 +38,7 @@ class Shipment(Base):
     destination_country = Column(String(50))
     status = Column(String(50))
     current_location = Column(Text)
+    ai_insight = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())

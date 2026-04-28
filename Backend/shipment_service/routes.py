@@ -17,8 +17,25 @@ RISK_SERVICE_URL = os.getenv("RISK_SERVICE_URL", f"http://127.0.0.1:{PORT}")
 
 router = APIRouter(prefix="/shipments", tags=["Shipments"])
 
-async def trigger_ai_pipeline(shipment_id: int, product_name: str):
+async def trigger_ai_pipeline(shipment_id: int, product_name: str, origin: str, dest: str, status: str):
     import asyncio
+    from database import async_session
+    from models.models import Shipment
+    
+    # 1. Fetch AI Insight asynchronously
+    insight = await service.get_ai_insight(product_name, origin, dest, status)
+    
+    # 2. Save it to DB in its own session
+    try:
+        async with async_session() as session:
+            db_shipment = await session.get(Shipment, shipment_id)
+            if db_shipment:
+                db_shipment.ai_insight = insight
+                await session.commit()
+    except Exception as e:
+        print(f"Error saving ai_insight: {e}")
+
+    # 3. Trigger HTTP pipeline
     async with httpx.AsyncClient() as client:
         # Trigger all analyses in parallel for faster completion
         tasks = [
@@ -41,7 +58,14 @@ async def create_shipment(
     db: AsyncSession = Depends(get_db)
 ):
     shipment = await service.create_shipment(db, payload)
-    background_tasks.add_task(trigger_ai_pipeline, shipment.id, shipment.product_name)
+    background_tasks.add_task(
+        trigger_ai_pipeline, 
+        shipment.id, 
+        shipment.product_name,
+        shipment.origin_country,
+        shipment.destination_country,
+        shipment.status
+    )
     return shipment
 
 @router.get("/", response_model=List[ShipmentResponse])
