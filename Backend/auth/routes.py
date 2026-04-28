@@ -154,6 +154,7 @@ async def login_json(
 
 @router.post("/forgot-password")
 async def forgot_password(
+    request: Request,
     request_data: schemas.ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
@@ -171,7 +172,8 @@ async def forgot_password(
     )
     
     # Send real email in the background for faster response time
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    origin = request.headers.get("origin")
+    frontend_url = os.getenv("FRONTEND_URL", origin if origin else "http://localhost:5173").rstrip("/")
     reset_link = f"{frontend_url}/reset-password?token={reset_token}"
     
     background_tasks.add_task(utils.send_reset_email, user.email, reset_link)
