@@ -122,7 +122,8 @@ async def startup():
             try:
                 async with engine.connect() as conn:
                     print("🔄 Background Sync: Running fast schema update...")
-                    fast_sync_sql = """
+                    # 1. Update Columns
+                    columns_sql = """
                     DO $$ 
                     BEGIN 
                         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='duties' AND column_name='status') THEN
@@ -141,18 +142,24 @@ async def startup():
                             ALTER TABLE shipments ADD COLUMN ai_insight TEXT;
                         END IF;
                     END $$;
-
-                    -- Performance Indexes
-                    CREATE INDEX IF NOT EXISTS idx_shipments_created_at ON shipments(created_at);
-                    CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
-                    CREATE INDEX IF NOT EXISTS idx_documents_shipment_id ON documents(shipment_id);
-                    CREATE INDEX IF NOT EXISTS idx_tracking_shipment_id ON shipment_tracking(shipment_id);
-                    CREATE INDEX IF NOT EXISTS idx_risk_shipment_id ON risk_assessments(shipment_id);
-                    CREATE INDEX IF NOT EXISTS idx_risk_level ON risk_assessments(risk_level);
-                    CREATE INDEX IF NOT EXISTS idx_duty_shipment_id ON duties(shipment_id);
-                    CREATE INDEX IF NOT EXISTS idx_hsn_shipment_id ON hsn_classifications(shipment_id);
                     """
-                    await conn.execute(text(fast_sync_sql))
+                    await conn.execute(text(columns_sql))
+
+                    # 2. Performance Indexes (must be separate for asyncpg)
+                    indexes = [
+                        "CREATE INDEX IF NOT EXISTS idx_shipments_created_at ON shipments(created_at)",
+                        "CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status)",
+                        "CREATE INDEX IF NOT EXISTS idx_documents_shipment_id ON documents(shipment_id)",
+                        "CREATE INDEX IF NOT EXISTS idx_tracking_shipment_id ON shipment_tracking(shipment_id)",
+                        "CREATE INDEX IF NOT EXISTS idx_risk_shipment_id ON risk_assessments(shipment_id)",
+                        "CREATE INDEX IF NOT EXISTS idx_risk_level ON risk_assessments(risk_level)",
+                        "CREATE INDEX IF NOT EXISTS idx_duty_shipment_id ON duties(shipment_id)",
+                        "CREATE INDEX IF NOT EXISTS idx_hsn_shipment_id ON hsn_classifications(shipment_id)"
+                    ]
+                    
+                    for idx_sql in indexes:
+                        await conn.execute(text(idx_sql))
+
                     await conn.commit()
                     log.info("✅ Background Sync: Database fully optimized.")
             except Exception as e:
