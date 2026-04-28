@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import schemas, service, utils
 from .dependencies import get_db, get_current_user
+from logger import log
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -183,20 +184,28 @@ async def reset_password(
     db: AsyncSession = Depends(get_db)
 ):
     """Reset user password using a valid token"""
+    log.debug(f"🔑 Reset Password attempt with token start: {reset_data.token[:10]}...")
+    
     payload = utils.verify_access_token(reset_data.token)
     if not payload or payload.get("type") != "password_reset":
+        log.warning("❌ Invalid or expired reset token provided")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token"
         )
     
     email = payload.get("sub")
+    log.debug(f"📧 Token valid for email: {email}")
+    
     user = await service.get_user_by_email(db, email)
     if not user:
+        log.warning(f"❓ User not found for email: {email}")
         raise HTTPException(status_code=404, detail="User not found")
     
     # Update password
+    log.debug("📝 Calling service.update_user_password...")
     await service.update_user_password(db, user, reset_data.new_password)
+    log.debug("✅ service.update_user_password completed")
     
     return {"message": "Password successfully reset. You can now login with your new password."}
 

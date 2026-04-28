@@ -2,8 +2,9 @@ import sys
 from loguru import logger
 import os
 
-# Create logs directory if it doesn't exist
-LOGS_DIR = os.path.join(os.path.dirname(__file__), "logs")
+# Create logs directory in the project root (one level up from Backend)
+# to avoid Uvicorn reload loops when logs are written.
+LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
 if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 

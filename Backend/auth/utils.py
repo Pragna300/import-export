@@ -5,6 +5,7 @@ from starlette.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 import os
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+from logger import log
 
 load_dotenv()
 
@@ -125,11 +126,8 @@ async def send_reset_email(email: str, reset_link: str):
     fm = FastMail(conf)
     try:
         await fm.send_message(message)
-        print(f"✅ EMAIL SENT SUCCESSFULLY to {email}")
+        log.info(f"✅ EMAIL SENT SUCCESSFULLY to {email}")
         return True
     except Exception as e:
-        print("\n" + "!"*50)
-        print(f"❌ EMAIL SENDING FAILED to {email}")
-        print(f"ERROR: {str(e)}")
-        print("!"*50 + "\n")
+        log.error(f"❌ EMAIL SENDING FAILED to {email} | Error: {str(e)}")
         return False

@@ -3,6 +3,8 @@ from sqlalchemy.future import select
 from fastapi import HTTPException, status
 from . import schemas, utils
 from models.models import User
+from logger import log
+from sqlalchemy import update
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import os
@@ -70,12 +72,26 @@ async def create_user(db: AsyncSession, user_data: schemas.UserCreate):
         )
 
 async def update_user_password(db: AsyncSession, user: User, new_password: str):
-    """Update user password asynchronously"""
-    user.password_hash = await utils.get_password_hash(new_password)
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
+    """Update user password with simplified async logic to prevent hangs"""
+    try:
+        log.info(f"🔄 Updating password for: {user.email}")
+        
+        # Hash the new password
+        hashed_password = await utils.get_password_hash(new_password)
+        
+        # Simple attribute update is usually safest for objects already in session
+        user.password_hash = hashed_password
+        
+        # Explicitly add to session and commit
+        db.add(user)
+        await db.commit()
+        
+        log.info(f"✅ Password reset successful for {user.email}")
+        return user
+    except Exception as e:
+        await db.rollback()
+        log.error(f"❌ Password update failed for {user.email}: {str(e)}")
+        raise e
 
 async def verify_google_token(token: str):
     try:

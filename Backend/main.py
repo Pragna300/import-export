@@ -56,11 +56,12 @@ app.add_middleware(
 @app.middleware("http")
 async def log_requests(request, call_next):
     start_time = time.time()
+    log.debug(f"📥 Incoming: {request.method} {request.url.path}")
     response = await call_next(request)
     duration = time.time() - start_time
     
     log.info(
-        f"{request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s"
+        f"📤 Outgoing: {request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s"
     )
     return response
 
