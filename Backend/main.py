@@ -134,6 +134,9 @@ async def startup():
                         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='doc_type') THEN
                             ALTER TABLE documents ADD COLUMN doc_type VARCHAR(50);
                         END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='photo_url') THEN
+                            ALTER TABLE users ADD COLUMN photo_url TEXT;
+                        END IF;
                     END $$;
                     """
                     await conn.execute(text(fast_sync_sql))

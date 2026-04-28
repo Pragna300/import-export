@@ -11,13 +11,77 @@ import {
   Menu, 
   X,
   Bell,
-  User
+  User,
+  Settings,
+  Camera,
+  ChevronDown
 } from 'lucide-react';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = React.useState(false);
+  const [userProfile, setUserProfile] = React.useState({ name: 'Loading...', role: '', email: '', photo_url: null });
+  const [isDropdownOpen, setDropdownOpen] = React.useState(false);
+  const [isEditModalOpen, setEditModalOpen] = React.useState(false);
+  const [editForm, setEditForm] = React.useState({ name: '', photo_url: '' });
   const location = useLocation();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const fetchUserProfile = async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUserProfile({ 
+            name: data.name || data.email.split('@')[0], 
+            role: data.role === 'user' ? 'employee' : data.role, 
+            email: data.email,
+            photo_url: data.photo_url 
+          });
+          setEditForm({ name: data.name || '', photo_url: data.photo_url || '' });
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
+      }
+    };
+    
+    fetchUserProfile();
+  }, []);
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/me`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editForm)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile({ 
+          name: data.name || data.email.split('@')[0], 
+          role: data.role === 'user' ? 'employee' : data.role,
+          email: data.email,
+          photo_url: data.photo_url
+        });
+        setEditModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Failed to update profile", error);
+    }
+  };
 
   const navigation = [
     { name: 'Analytics Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -112,14 +176,48 @@ const DashboardLayout = () => {
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             <div className="h-8 w-px bg-slate-200 mx-2"></div>
-            <div className="flex items-center gap-3 pl-2">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-900">Admin User</p>
-                <p className="text-xs text-slate-500 capitalize">Operations Employee</p>
-              </div>
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200">
-                <User size={24} />
-              </div>
+            <div className="relative">
+              <button 
+                className="flex items-center gap-3 pl-2 hover:bg-slate-50 p-1 rounded-lg transition-colors text-left"
+                onClick={() => setDropdownOpen(!isDropdownOpen)}
+              >
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-bold text-slate-900">{userProfile.name}</p>
+                  <p className="text-xs text-slate-500 capitalize">{userProfile.role ? userProfile.role.replace('_', ' ') : 'Employee'}</p>
+                </div>
+                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200 overflow-hidden">
+                  {userProfile.photo_url ? (
+                    <img src={userProfile.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={24} />
+                  )}
+                </div>
+                <ChevronDown size={16} className="text-slate-400" />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-100 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-slate-100 mb-2">
+                    <p className="text-sm font-bold text-slate-900">{userProfile.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{userProfile.email}</p>
+                  </div>
+                  <button 
+                    onClick={() => { setEditModalOpen(true); setDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                  >
+                    <Settings size={16} />
+                    Edit Profile
+                  </button>
+                  <button 
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -129,6 +227,83 @@ const DashboardLayout = () => {
           <Outlet />
         </div>
       </main>
+      
+      {/* Edit Profile Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative shadow-2xl">
+            <button 
+              onClick={() => setEditModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors bg-slate-100 hover:bg-slate-200 rounded-full p-1"
+            >
+              <X size={20} />
+            </button>
+            
+            <h2 className="text-xl font-bold text-slate-900 mb-6">Edit Profile</h2>
+            
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="flex justify-center mb-6">
+                <label className="relative w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-md flex items-center justify-center overflow-hidden group cursor-pointer">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setEditForm({ ...editForm, photo_url: reader.result });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }} 
+                  />
+                  {editForm.photo_url ? (
+                    <img src={editForm.photo_url} alt="Profile Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={40} className="text-slate-400 group-hover:scale-110 transition-transform" />
+                  )}
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera size={24} className="text-white" />
+                  </div>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  placeholder="Enter your name"
+                />
+              </div>
+
+              <div className="text-center">
+                <p className="text-xs text-slate-500 mt-1">Click the profile picture above to upload a photo from your device.</p>
+              </div>
+
+              <div className="pt-6 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setEditModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg font-medium transition-all"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

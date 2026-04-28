@@ -13,6 +13,7 @@ class User(Base):
     email = Column(String(150), unique=True, index=True)
     password_hash = Column(Text)
     role = Column(String(50))
+    photo_url = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())

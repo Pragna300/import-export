@@ -125,6 +125,31 @@ async def logout(response: Response):
     )
     return {"message": "Successfully logged out"}
 
+@router.get("/me", response_model=schemas.UserResponse)
+async def get_current_user_profile(
+    current_user = Depends(get_current_user)
+):
+    """Get current logged in user details"""
+    return current_user
+
+@router.put("/me", response_model=schemas.UserResponse)
+async def update_current_user_profile(
+    update_data: schemas.UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Update current logged in user details"""
+    if update_data.name is not None:
+        current_user.name = update_data.name
+    if update_data.photo_url is not None:
+        current_user.photo_url = update_data.photo_url
+        
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    
+    return current_user
+
 @router.post("/login-json", response_model=schemas.Token)
 async def login_json(
     login_data: schemas.LoginRequest,
@@ -244,7 +269,7 @@ async def google_login(
             name=name,
             email=email,
             password="google_oauth_dummy",  # not used
-            role="user"
+            role="employee"
         )
         user = await service.create_user(db, user_data)
 

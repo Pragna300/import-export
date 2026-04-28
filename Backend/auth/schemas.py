@@ -6,7 +6,7 @@ class UserCreate(BaseModel):
     name: Optional[str] = None
     email: EmailStr
     password: str
-    role: Optional[str] = "user"
+    role: Optional[str] = "employee"
     
     @field_validator('password')
     @classmethod
@@ -34,11 +34,16 @@ class UserResponse(BaseModel):
     name: Optional[str]
     email: EmailStr
     role: str
+    photo_url: Optional[str] = None
     is_active: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    photo_url: Optional[str] = None
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
