@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import config from '../config';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -41,7 +42,7 @@ const DashboardLayout = () => {
       if (!token) return;
       
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/me`, {
+        const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -76,7 +77,7 @@ const DashboardLayout = () => {
     e.preventDefault();
     const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/me`, {
+      const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
