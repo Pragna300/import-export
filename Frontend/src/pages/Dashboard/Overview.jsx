@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import config from '../../config';
+import { exportInvoicesToExcel } from '../../utils/invoiceExport';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -63,6 +64,7 @@ const Overview = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Products Overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInvoiceExporting, setIsInvoiceExporting] = useState(false);
   const [showMasterReport, setShowMasterReport] = useState(false);
   
   const [granularity, setGranularity] = useState('Monthly');
@@ -118,6 +120,29 @@ const Overview = () => {
     fetchRecentShipments(controller.signal);
     return () => controller.abort();
   }, []);
+
+  const handleInvoiceExcelExport = async () => {
+    if (isInvoiceExporting) {
+      return;
+    }
+
+    setIsInvoiceExporting(true);
+    try {
+      const result = await exportInvoicesToExcel({
+        apiBaseUrl: config.API_BASE_URL,
+        filePrefix: 'shnoor_invoices',
+      });
+
+      if (result.exportedCount === 0) {
+        window.alert('No invoice documents found to export.');
+      }
+    } catch (error) {
+      console.error('Failed to export invoice Excel:', error);
+      window.alert('Failed to export invoice Excel. Please try again.');
+    } finally {
+      setIsInvoiceExporting(false);
+    }
+  };
 
   if (isLoading && !data) return (
     <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
@@ -611,6 +636,14 @@ const Overview = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-3 relative z-10">
+           <button
+             onClick={handleInvoiceExcelExport}
+             disabled={isInvoiceExporting}
+             className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-2 border border-indigo-500/20"
+           >
+             <Download size={16} />
+             {isInvoiceExporting ? 'Downloading...' : 'Download Invoice Excel'}
+           </button>
            {data?.summary?.shipments_count > 0 && (
              <button 
                 onClick={() => exportAnalyticsToExcel(data)}
