@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import traceback
 import asyncio
 from sqlalchemy import text
+from fastapi.middleware.gzip import GZipMiddleware
 
 from database import engine, Base, get_db
 from tracking_service.service import listen_to_pg_tracking
@@ -51,6 +52,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ✅ GZIP COMPRESSION
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ✅ REQUEST LOGGING MIDDLEWARE
 @app.middleware("http")

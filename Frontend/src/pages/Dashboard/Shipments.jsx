@@ -20,6 +20,7 @@ import {
   Download,
   Printer
 } from 'lucide-react';
+import { exportItemToExcel } from '../../utils/excelExport';
 
 const Modal = ({ isOpen, onClose, children, title }) => {
   if (!isOpen) return null;
@@ -40,10 +41,21 @@ const Shipments = () => {
   const [activeTab, setActiveTab] = useState('All');
   const [shipments, setShipments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Immediate input value
+  const [search, setSearch] = useState(''); // Debounced value
   const [skip, setSkip] = useState(0);
   const [limit] = useState(20);
   
+  // Debounce Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchTerm);
+      setSkip(0); // Reset pagination on search change
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Modal & Detail State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState(null);
@@ -81,8 +93,7 @@ const Shipments = () => {
   }, [skip, search]);
 
   const handleSearch = (e) => {
-    setSearch(e.target.value);
-    setSkip(0); // Reset to first page on search
+    setSearchTerm(e.target.value);
   };
 
   const handleCreateShipment = async (e) => {
@@ -165,7 +176,7 @@ const Shipments = () => {
            <div className="p-8 bg-slate-50 border-t border-slate-100">
               <button 
                 onClick={() => {
-                  const dataToDownload = {
+                  const dataToExport = {
                     shipment_code: selectedShipment.shipment_code,
                     product_name: selectedShipment.product_name,
                     hsn_code: selectedShipment.hsn_code,
@@ -175,17 +186,12 @@ const Shipments = () => {
                     status: selectedShipment.status,
                     audit_date: new Date().toLocaleDateString()
                   };
-                  const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `shipment_${selectedShipment.shipment_code}.json`;
-                  a.click();
+                  exportItemToExcel(dataToExport, "Shipment Transit Audit", "shipment");
                 }}
                 className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-3"
               >
                 <Download size={18} />
-                Download Shipment Data (JSON)
+                Download Shipment Audit (Excel)
               </button>
            </div>
         </div>
@@ -207,7 +213,7 @@ const Shipments = () => {
               <input 
                 type="text" 
                 placeholder="Find Shipment ID or Product..."
-                value={search}
+                value={searchTerm}
                 onChange={handleSearch}
                 className="w-full bg-white border border-slate-200 pl-10 pr-4 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
               />

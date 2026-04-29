@@ -66,12 +66,16 @@ async def get_all_shipments(db: AsyncSession, skip: int = 0, limit: int = 50, se
     
     from sqlalchemy.orm import joinedload
     result = await db.execute(
-        query.options(joinedload(Shipment.hsn_classification))
+        query.options(
+            joinedload(Shipment.hsn_classification),
+            joinedload(Shipment.duty),
+            joinedload(Shipment.risk_assessment)
+        )
         .order_by(Shipment.created_at.desc())
         .offset(skip)
         .limit(limit)
     )
-    shipments = result.scalars().all()
+    shipments = result.scalars().unique().all()
     
     # Map HSN code to the top-level attribute for the schema
     for s in shipments:
@@ -82,7 +86,11 @@ async def get_all_shipments(db: AsyncSession, skip: int = 0, limit: int = 50, se
 
 async def get_shipment_by_id(db: AsyncSession, shipment_id: int):
     from sqlalchemy.orm import joinedload
-    stmt = select(Shipment).where(Shipment.id == shipment_id).options(joinedload(Shipment.hsn_classification))
+    stmt = select(Shipment).where(Shipment.id == shipment_id).options(
+        joinedload(Shipment.hsn_classification),
+        joinedload(Shipment.duty),
+        joinedload(Shipment.risk_assessment)
+    )
     result = await db.execute(stmt)
     shipment = result.scalars().first()
     

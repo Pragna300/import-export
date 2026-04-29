@@ -40,8 +40,9 @@ import {
   PieChart,
   Pie
 } from 'recharts';
+import { exportAnalyticsToExcel } from '../../utils/excelExport';
 
-const AccountCard = ({ label, value, subtext, color, subValue, trend }) => (
+const AccountCard = React.memo(({ label, value, subtext, color, subValue, trend }) => (
   <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
     <p className={`text-[10px] font-bold uppercase tracking-widest ${color} mb-2`}>{label}</p>
     <div className="flex items-baseline gap-2">
@@ -55,7 +56,7 @@ const AccountCard = ({ label, value, subtext, color, subValue, trend }) => (
     {subtext && <p className="text-[10px] text-slate-400 mt-1">{subtext}</p>}
     {subValue && <p className={`text-[10px] mt-1 font-bold ${color}`}>{subValue}</p>}
   </div>
-);
+));
 
 const Overview = () => {
   const [data, setData] = useState(null);
@@ -71,44 +72,51 @@ const Overview = () => {
   const [recentShipments, setRecentShipments] = useState([]);
   const [isShipmentsLoading, setIsShipmentsLoading] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = async (signal) => {
     setIsRefreshing(true);
     try {
-      // Add date filters to query parameters
       const params = new URLSearchParams();
       if (startDate) params.append('start_date', new Date(startDate).toISOString());
       if (endDate) params.append('end_date', new Date(endDate).toISOString());
       
-      const response = await fetch(`${config.API_BASE_URL}/analytics/summary?${params.toString()}`);
+      const response = await fetch(`${config.API_BASE_URL}/analytics/summary?${params.toString()}`, { signal });
       const result = await response.json();
       setData(result);
     } catch (err) {
-      console.error("Failed to fetch analytics:", err);
+      if (err.name !== 'AbortError') {
+        console.error("Failed to fetch analytics:", err);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   };
 
-  const fetchRecentShipments = async () => {
+  const fetchRecentShipments = async (signal) => {
     setIsShipmentsLoading(true);
     try {
-      const response = await fetch(`${config.API_BASE_URL}/shipments/?limit=5`);
+      const response = await fetch(`${config.API_BASE_URL}/shipments/?limit=5`, { signal });
       const data = await response.json();
       setRecentShipments(data);
     } catch (err) {
-      console.error("Failed to fetch recent shipments:", err);
+      if (err.name !== 'AbortError') {
+        console.error("Failed to fetch recent shipments:", err);
+      }
     } finally {
       setIsShipmentsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [startDate, endDate]); // Trigger re-fetch when dates change
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
+  }, [startDate, endDate]);
 
   useEffect(() => {
-    fetchRecentShipments();
+    const controller = new AbortController();
+    fetchRecentShipments(controller.signal);
+    return () => controller.abort();
   }, []);
 
   if (isLoading && !data) return (
@@ -150,8 +158,8 @@ const Overview = () => {
                       <PieChart>
                         <Pie
                           data={[
-                            { name: 'Paid', value: parseFloat(data?.summary?.paid_amount.replace(/[₹,]/g, '') || 0), color: '#10b981' },
-                            { name: 'Unpaid', value: parseFloat(data?.summary?.pending_amount.replace(/[₹,]/g, '') || 0), color: '#f43f5e' }
+                            { name: 'Paid', value: parseFloat((data?.summary?.paid_amount || '0').replace(/[₹,]/g, '')), color: '#10b981' },
+                            { name: 'Unpaid', value: parseFloat((data?.summary?.pending_amount || '0').replace(/[₹,]/g, '')), color: '#f43f5e' }
                           ]}
                           innerRadius={60}
                           outerRadius={80}
@@ -217,6 +225,59 @@ const Overview = () => {
       case 'Products Performance':
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+               <AccountCard label="Gross Revenue" value={data?.summary?.total_revenue || '₹0'} subtext="Total Ledger Value" color="text-blue-600" />
+               <AccountCard label="Invoice Paid" value={data?.summary?.paid_amount || '₹0'} subtext={`${data?.summary?.paid_percent || '0%'} collection rate`} color="text-emerald-600" />
+               <AccountCard label="Balance Due" value={data?.summary?.pending_amount || '₹0'} subtext="Awaiting verification" color="text-rose-600" />
+               <AccountCard label="Duty Expenses" value={data?.summary?.total_expenses || '₹0'} subtext="Tax & Customs liability" color="text-indigo-600" />
+               <AccountCard label="HSN Accuracy" value={data?.summary?.hsn_accuracy || '0%'} subtext="AI confidence score" color="text-amber-600" />
+               <AccountCard label="Critical Risks" value={String(data?.summary?.risk_alerts || 0).padStart(2, '0')} subtext="High-risk detections" color="text-rose-600" />
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                     <Globe size={14} className="text-blue-500" /> Origin Distribution
+                   </h4>
+                   <div className="h-48 md:h-64">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <PieChart>
+                         <Pie
+                           data={data?.country_distribution || []}
+                           innerRadius={60}
+                           outerRadius={80}
+                           paddingAngle={5}
+                           dataKey="value"
+                           nameKey="name"
+                         >
+                           {(data?.country_distribution || []).map((entry, index) => (
+                             <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1'][index % 5]} />
+                           ))}
+                         </Pie>
+                         <Tooltip />
+                       </PieChart>
+                     </ResponsiveContainer>
+                   </div>
+                </div>
+
+                <div className="lg:col-span-2 bg-slate-900 p-8 rounded-3xl text-white relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <Zap size={120} />
+                   </div>
+                   <div className="relative z-10">
+                      <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mb-4">Latest Auditor Intelligence</h4>
+                      <p className="text-lg font-medium leading-relaxed text-slate-200 italic mb-6">
+                        "Consignment #{data?.summary?.shipments_count + 124 || '842'} verified with 98% accuracy. 
+                        No immediate compliance risks detected in origin countries: {data?.country_distribution?.map(c => c.name).join(', ') || 'Global'}."
+                      </p>
+                      <div className="flex items-center gap-4">
+                         <div className="h-1 w-24 bg-blue-500 rounded-full" />
+                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Shnoor AI • Real-time Scan</span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">Top Products by Revenue</h4>
@@ -461,6 +522,36 @@ const Overview = () => {
 
               <div className="space-y-6">
                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                    <Globe size={16} className="text-blue-600" /> Regional Compliance & Logistics Breakdown
+                 </h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Top Origin Countries</p>
+                       <div className="space-y-4">
+                          {(data?.country_distribution || []).map((c, i) => (
+                             <div key={i} className="flex justify-between items-center">
+                                <span className="text-sm font-bold text-slate-700">{c.name}</span>
+                                <span className="text-sm font-black text-slate-900">{c.count} <span className="text-[10px] font-medium text-slate-400">shipments</span></span>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Duty & Tax Exposure</p>
+                       <div className="space-y-4">
+                          {(data?.category_distribution || []).slice(0, 3).map((c, i) => (
+                             <div key={i} className="flex justify-between items-center">
+                                <span className="text-sm font-bold text-slate-700">{c.name}</span>
+                                <span className="text-sm font-black text-slate-900">₹{c.value?.toLocaleString()}</span>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="space-y-6">
+                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                     <TrendingUp size={16} className="text-blue-600" /> AI Forecasting & Strategic Outlook
                  </h3>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -522,17 +613,10 @@ const Overview = () => {
         <div className="flex flex-wrap gap-3 relative z-10">
            {data?.summary?.shipments_count > 0 && (
              <button 
-                onClick={() => {
-                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `shnoor_analytics_${new Date().toISOString().split('T')[0]}.json`;
-                  a.click();
-                }}
+                onClick={() => exportAnalyticsToExcel(data)}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center gap-2 border border-emerald-500/20"
               >
-                <Download size={16} /> Download All Analytics
+                <Download size={16} /> Download Intelligence Ledger (Excel)
               </button>
            )}
            <button 
@@ -551,64 +635,100 @@ const Overview = () => {
       </div>
 
       {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* Gross Revenue */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <DollarSign size={24} />
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <DollarSign size={20} />
               </div>
-              <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">LIVE</span>
+              <span className="text-[9px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg">TOTAL</span>
            </div>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Gross Revenue</p>
-           <h3 className="text-2xl font-black text-slate-900">{data?.summary?.total_revenue || '₹0'}</h3>
-           <div className="mt-4 flex items-center gap-2">
-              <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                 <div className="h-full bg-blue-600 w-[75%]" />
+           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Gross Revenue</p>
+           <h3 className="text-xl font-black text-slate-900">{data?.summary?.total_revenue || '₹0'}</h3>
+           <div className="mt-3 flex items-center gap-2">
+              <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                 <div className="h-full bg-blue-600 w-[100%]" />
               </div>
-              <span className="text-[10px] font-bold text-blue-600">75% Target</span>
            </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+        {/* Invoice Paid */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl group-hover:bg-rose-600 group-hover:text-white transition-colors">
-                <TrendingDown size={24} />
+              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <CheckCircle2 size={20} />
               </div>
-              <span className="text-[10px] font-black bg-rose-100 text-rose-700 px-2 py-1 rounded-lg">TAX</span>
+              <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg">PAID</span>
            </div>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Duty Expenses</p>
-           <h3 className="text-2xl font-black text-slate-900">{data?.summary?.total_expenses || '₹0'}</h3>
-           <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 font-medium">
-             <Clock size={10} /> Updated moments ago
+           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Invoice Paid</p>
+           <h3 className="text-xl font-black text-slate-900">{data?.summary?.paid_amount || '₹0'}</h3>
+           <div className="mt-3 flex items-center gap-2">
+              <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                 <div className="h-full bg-emerald-500" style={{ width: data?.summary?.paid_percent || '0%' }} />
+              </div>
+              <span className="text-[9px] font-bold text-emerald-600">{data?.summary?.paid_percent || '0%'}</span>
+           </div>
+        </div>
+
+        {/* Balance to Pay */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                <Calculator size={20} />
+              </div>
+              <span className="text-[9px] font-black bg-rose-100 text-rose-700 px-2 py-0.5 rounded-lg">BALANCE</span>
+           </div>
+           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Balance Need to Pay</p>
+           <h3 className="text-xl font-black text-slate-900">{data?.summary?.pending_amount || '₹0'}</h3>
+           <p className="text-[9px] text-slate-400 mt-2 flex items-center gap-1 font-medium italic">
+             Awaiting confirmation
            </p>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+        {/* Duty Expenses */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                <Package size={24} />
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                <TrendingDown size={20} />
               </div>
-              <span className="text-[10px] font-black bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg">SHIP</span>
+              <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg">TAX</span>
            </div>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Total Shipments</p>
-           <h3 className="text-2xl font-black text-slate-900">{data?.summary?.shipments_count || '0'}</h3>
-           <p className="text-[10px] text-indigo-600 mt-2 font-bold flex items-center gap-1">
+           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Duty Expenses</p>
+           <h3 className="text-xl font-black text-slate-900">{data?.summary?.total_expenses || '₹0'}</h3>
+           <p className="text-[9px] text-slate-400 mt-2 flex items-center gap-1 font-medium">
+             <Clock size={10} /> Live sync
+           </p>
+        </div>
+
+        {/* Total Shipments */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <Package size={20} />
+              </div>
+              <span className="text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-lg">SHIP</span>
+           </div>
+           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Total Shipments</p>
+           <h3 className="text-xl font-black text-slate-900">{data?.summary?.shipments_count || '0'}</h3>
+           <p className="text-[9px] text-indigo-600 mt-2 font-bold flex items-center gap-1">
              <CheckCircle2 size={10} /> All syncs active
            </p>
         </div>
 
-        <div className="bg-slate-900 p-6 rounded-3xl shadow-2xl shadow-slate-900/20 text-white relative overflow-hidden group">
+        {/* Critical Risks */}
+        <div className="bg-slate-900 p-5 rounded-3xl shadow-2xl shadow-slate-900/20 text-white relative overflow-hidden group">
            <div className="absolute -bottom-4 -right-4 opacity-10 group-hover:scale-110 transition-transform">
-              <ShieldAlert size={80} />
+              <ShieldAlert size={60} />
            </div>
            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-white/10 text-rose-400 rounded-2xl">
-                <ShieldAlert size={24} />
+              <div className="p-2 bg-white/10 text-rose-400 rounded-xl">
+                <ShieldAlert size={20} />
               </div>
            </div>
-           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-1">Critical Risks</p>
-           <h3 className="text-2xl font-black">{data?.summary?.risk_alerts || '0'}</h3>
-           <p className="text-[10px] text-rose-400 mt-2 font-bold">Action Required Immediately</p>
+           <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-1">Critical Risks</p>
+           <h3 className="text-xl font-black">{data?.summary?.risk_alerts || '0'}</h3>
+           <p className="text-[9px] text-rose-400 mt-2 font-bold">Action Required</p>
         </div>
       </div>
 

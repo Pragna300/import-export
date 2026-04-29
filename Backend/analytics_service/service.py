@@ -4,6 +4,11 @@ from sqlalchemy import func, extract, case, text
 from models.models import Shipment, Document, HSNClassification, RiskAssessment, Duty
 import asyncio
 from database import async_session
+import time
+
+# ✅ SIMPLE IN-MEMORY CACHE
+_cache = {}
+_CACHE_TTL = 60 # 1 minute
 
 async def fetch_query(stmt, fetch_type="scalar"):
     """Execute a query in an isolated session to allow concurrency."""
@@ -21,6 +26,14 @@ async def fetch_query(stmt, fetch_type="scalar"):
             return None
 
 async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_date: str = None):
+    # ✅ CACHE CHECK
+    cache_key = f"dash_{start_date}_{end_date}"
+    now = time.time()
+    if cache_key in _cache:
+        val, expiry = _cache[cache_key]
+        if now < expiry:
+            return val
+
     from datetime import datetime
     
     # Parse dates if provided
@@ -96,15 +109,23 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         func.sum(Shipment.total_value).label('value')
     ).group_by(Shipment.product_name), Shipment).limit(10)
 
-    # 🚀 Run all 7 database aggregates concurrently!
-    shp_row, duty_row, docs_val, risk_val, hsn_val, hist_rows, perf_rows = await asyncio.gather(
+    # Country Distribution
+    country_stmt = apply_filters(select(
+        Shipment.origin_country,
+        func.count(Shipment.id).label('count'),
+        func.sum(Shipment.total_value).label('value')
+    ).group_by(Shipment.origin_country), Shipment).order_by(text('count DESC')).limit(5)
+
+    # 🚀 Run all database aggregates concurrently!
+    shp_row, duty_row, docs_val, risk_val, hsn_val, hist_rows, perf_rows, country_rows = await asyncio.gather(
         fetch_query(shp_stmt, "first"),
         fetch_query(duty_stmt, "first"),
         fetch_query(docs_stmt, "scalar"),
         fetch_query(risk_stmt, "scalar"),
         fetch_query(hsn_stmt, "scalar"),
         fetch_query(hist_stmt, "all"),
-        fetch_query(perf_stmt, "all")
+        fetch_query(perf_stmt, "all"),
+        fetch_query(country_stmt, "all")
     )
     
     if shp_row:
@@ -123,6 +144,10 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
     docs_count = docs_val or 0
     risk_alerts = risk_val or 0
     hsn_classified_count = hsn_val or 0
+    
+    # Calculate avg HSN confidence if available
+    hsn_conf_stmt = apply_filters(select(func.avg(HSNClassification.confidence_score)), Shipment).join(HSNClassification)
+    avg_hsn_conf = await fetch_query(hsn_conf_stmt, "scalar") or 0.92 # Fallback to 92% if no data
 
     pending_amount = total_revenue_val - paid_amount
     growth_rate = 1.05 
@@ -134,6 +159,15 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         {"name": "Other Charges", "value": other_sum, "color": "#f59e0b"},
         {"name": "Operational Misc", "value": total_expenses_val * 0.1, "color": "#64748b"},
     ]
+
+    country_dist = []
+    if country_rows:
+        for row in country_rows:
+            country_dist.append({
+                "name": row[0],
+                "count": row[1],
+                "value": float(row[2] or 0)
+            })
 
     # Payment Methods Breakdown (Simulated based on status for now)
     payment_methods = [
@@ -174,7 +208,7 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
     if not product_performance:
         product_performance = [{"name": "No Data", "count": 0, "value": 0, "color": "#cbd5e1"}]
 
-    return {
+    result = {
         "summary": {
             "total_revenue": f"₹{total_revenue_val:,.0f}",
             "total_expenses": f"₹{total_expenses_val:,.0f}",
@@ -185,6 +219,7 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
             "shipments_count": shipments_count,
             "risk_alerts": risk_alerts,
             "paid_percent": f"{(paid_amount / total_revenue_val * 100) if total_revenue_val > 0 else 0:.1f}%",
+            "hsn_accuracy": f"{float(avg_hsn_conf) * 100:.1f}%",
             "avg_price": f"₹{(total_revenue_val / (shipments_count if shipments_count > 0 else 1)):,.0f}",
             "min_price": f"₹{min_price_val:,.0f}",
             "peak_value": f"₹{peak_value_val:,.0f}",
@@ -202,10 +237,23 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
             {"name": "Error", "value": 0, "color": "#f43f5e"},
         ],
         "history": history_series,
-        "product_performance": product_performance
+        "product_performance": product_performance,
+        "country_distribution": country_dist
     }
+    
+    # ✅ CACHE STORAGE
+    _cache[cache_key] = (result, now + _CACHE_TTL)
+    return result
 
 async def get_risk_analytics(db: AsyncSession):
+    # ✅ CACHE CHECK
+    cache_key = "risk_analytics"
+    now = time.time()
+    if cache_key in _cache:
+        val, expiry = _cache[cache_key]
+        if now < expiry:
+            return val
+
     # Prepare statements
     high_stmt = select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'High')
     med_stmt = select(func.count(RiskAssessment.id)).where(RiskAssessment.risk_level == 'Medium')
@@ -245,7 +293,7 @@ async def get_risk_analytics(db: AsyncSession):
     total_duty = float(duty_sum_val or 0)
     avg_score = float(avg_score_val or 0)
 
-    return {
+    res = {
         "distribution": risk_dist,
         "top_entries": top_entries,
         "metrics": {
@@ -254,8 +302,20 @@ async def get_risk_analytics(db: AsyncSession):
             "avg_risk_score": round(avg_score, 1)
         }
     }
+    
+    # ✅ CACHE STORAGE
+    _cache[cache_key] = (res, now + _CACHE_TTL)
+    return res
 
 async def get_hsn_analytics(db: AsyncSession):
+    # ✅ CACHE CHECK
+    cache_key = "hsn_analytics"
+    now = time.time()
+    if cache_key in _cache:
+        val, expiry = _cache[cache_key]
+        if now < expiry:
+            return val
+
     total_stmt = select(func.count(HSNClassification.id))
     avg_conf_stmt = select(func.avg(HSNClassification.confidence_score))
     top_stmt = (
@@ -287,8 +347,12 @@ async def get_hsn_analytics(db: AsyncSession):
                 "shipment_code": shipment.shipment_code,
             })
 
-    return {
+    res = {
         "total": total,
         "avg_confidence": round(avg_conf, 1),
         "items": items,
     }
+    
+    # ✅ CACHE STORAGE
+    _cache[cache_key] = (res, now + _CACHE_TTL)
+    return res

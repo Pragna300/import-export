@@ -18,6 +18,7 @@ import {
   Printer,
   Download
 } from 'lucide-react';
+import { exportItemToExcel } from '../../utils/excelExport';
 
 // --- Confidence meter mini-component ---
 const ConfidenceMeter = ({ pct }) => {

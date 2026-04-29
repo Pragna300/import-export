@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   X
 } from 'lucide-react';
+import { exportItemToExcel } from '../../utils/excelExport';
 
 // --- SVG Gauge Chart ---
 const GaugeChart = ({ highCount, totalCount }) => {
