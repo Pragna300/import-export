@@ -23,11 +23,13 @@ import {
   Filter,
   BrainCircuit,
   Database,
+  Globe,
   Zap,
   Search,
   Download,
   Printer
 } from 'lucide-react';
+
 import { 
   AreaChart, 
   Area, 
@@ -120,6 +122,7 @@ const Overview = () => {
 
   const fetchClientBalances = async () => {
     setIsClientLoading(true);
+    setShowMasterReport(false);
     try {
       const response = await fetch(`${config.API_BASE_URL}/analytics/client-balances`);
       const result = await response.json();
@@ -132,6 +135,7 @@ const Overview = () => {
       setIsClientLoading(false);
     }
   };
+
 
 
   useEffect(() => {
@@ -763,11 +767,12 @@ const Overview = () => {
              {isClientLoading ? 'Loading Ledger...' : 'View Client Settlement Ledger'}
            </button>
            <button 
-              onClick={() => setShowMasterReport(true)}
+              onClick={() => { setShowMasterReport(true); setShowClientBalances(false); }}
               className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all flex items-center gap-2 border border-slate-700 group"
             >
               <Printer size={16} className="group-hover:scale-110 transition-transform" /> View Master Analytics
             </button>
+
            <button 
              onClick={() => { fetchData(); fetchRecentShipments(); }}
              className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10"
