@@ -72,6 +72,7 @@ async def import_data():
                         status=row['status'] if row['status'] != 'Paid' else 'Delivered',
                         origin_country=row['origin'],
                         destination_country=row['destination'],
+                        vendor=row['vendor'], # Map vendor column
                         created_by=system_user.id,
                         created_at=invoice_date
                     )

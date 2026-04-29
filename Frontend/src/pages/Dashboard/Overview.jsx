@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import config from '../../config';
 import { exportInvoicesToExcel } from '../../utils/invoiceExport';
+import { exportClientBalancesToCSV } from '../../utils/csvExport';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -66,8 +67,12 @@ const Overview = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInvoiceExporting, setIsInvoiceExporting] = useState(false);
   const [showMasterReport, setShowMasterReport] = useState(false);
+  const [showClientBalances, setShowClientBalances] = useState(false);
+  const [clientBalances, setClientBalances] = useState([]);
+  const [isClientLoading, setIsClientLoading] = useState(false);
   
   const [granularity, setGranularity] = useState('Monthly');
+
   const [startDate, setStartDate] = useState('2010-01-01');
   const [endDate, setEndDate] = useState('2030-12-31');
 
@@ -77,22 +82,26 @@ const Overview = () => {
   const fetchData = async (signal) => {
     setIsRefreshing(true);
     try {
-      const params = new URLSearchParams();
-      if (startDate) params.append('start_date', new Date(startDate).toISOString());
-      if (endDate) params.append('end_date', new Date(endDate).toISOString());
-      
-      const response = await fetch(`${config.API_BASE_URL}/analytics/summary?${params.toString()}`, { signal });
-      const result = await response.json();
-      setData(result);
+      const [summaryRes, balancesRes] = await Promise.all([
+        fetch(`${config.API_BASE_URL}/analytics/summary?start_date=${new Date(startDate).toISOString()}&end_date=${new Date(endDate).toISOString()}`, { signal }),
+        fetch(`${config.API_BASE_URL}/analytics/client-balances`, { signal })
+      ]);
+
+      const summaryResult = await summaryRes.json();
+      const balancesResult = await balancesRes.json();
+
+      setData(summaryResult);
+      setClientBalances(balancesResult);
     } catch (err) {
       if (err.name !== 'AbortError') {
-        console.error("Failed to fetch analytics:", err);
+        console.error("Critical fetch error:", err);
       }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   };
+
 
   const fetchRecentShipments = async (signal) => {
     setIsShipmentsLoading(true);
@@ -108,6 +117,22 @@ const Overview = () => {
       setIsShipmentsLoading(false);
     }
   };
+
+  const fetchClientBalances = async () => {
+    setIsClientLoading(true);
+    try {
+      const response = await fetch(`${config.API_BASE_URL}/analytics/client-balances`);
+      const result = await response.json();
+      setClientBalances(result);
+      setShowClientBalances(true);
+    } catch (err) {
+      console.error("Failed to fetch client balances:", err);
+      window.alert("Failed to load client balances.");
+    } finally {
+      setIsClientLoading(false);
+    }
+  };
+
 
   useEffect(() => {
     const controller = new AbortController();
@@ -427,21 +452,23 @@ const Overview = () => {
              </div>
 
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-6 rounded-2xl border border-slate-100">
-                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">Revenue vs Expense Comparison</h4>
-                   <div className="h-48 md:h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={data?.history || []}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                            <Tooltip />
-                            <Bar dataKey="revenue" fill="#3b82f6" radius={[4,4,0,0]} />
-                            <Bar dataKey="expenses" fill="#f43f5e" radius={[4,4,0,0]} />
-                         </BarChart>
-                      </ResponsiveContainer>
-                   </div>
-                </div>
-                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 flex flex-col justify-center">
+                 <div className="bg-white p-6 rounded-2xl border border-slate-100 lg:col-span-2">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">Revenue vs Expense Comparison</h4>
+                    <div className="h-48 md:h-80">
+                       <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={data?.history || []}>
+                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                             <Tooltip />
+                             <Bar dataKey="revenue" fill="#3b82f6" radius={[4,4,0,0]} />
+                             <Bar dataKey="expenses" fill="#f43f5e" radius={[4,4,0,0]} />
+                          </BarChart>
+                       </ResponsiveContainer>
+                    </div>
+                 </div>
+
+
+                 <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 flex flex-col justify-center lg:col-span-2">
                    <div className="text-center space-y-4">
                       <div className="inline-flex p-4 bg-emerald-100 text-emerald-600 rounded-full mb-2">
                          <TrendingUp size={32} />
@@ -508,7 +535,98 @@ const Overview = () => {
     }
   };
 
+  if (showClientBalances) {
+    const clientTotals = clientBalances.reduce((acc, b) => ({
+      billed: acc.billed + (b.total_billed || 0),
+      paid: acc.paid + (b.total_paid || 0),
+      balance: acc.balance + (b.balance || 0)
+    }), { billed: 0, paid: 0, balance: 0 });
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500 pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900 p-8 rounded-3xl text-white shadow-2xl">
+           <div className="flex items-center gap-4">
+              <div className="p-4 bg-indigo-600 rounded-2xl shadow-xl">
+                <Calculator size={32} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-tight">Client Settlement Ledger</h2>
+                <div className="flex items-center gap-3 mt-1">
+                  <p className="text-indigo-200/60 font-medium text-sm uppercase tracking-widest">Financial Reconciliation</p>
+                  <span className="w-1 h-1 bg-indigo-500 rounded-full" />
+                  <p className="text-white font-black text-sm uppercase tracking-tighter">{clientBalances.length} Total Clients</p>
+                </div>
+              </div>
+           </div>
+
+           <div className="flex gap-3">
+             <button 
+               onClick={() => exportClientBalancesToCSV(clientBalances)}
+               className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all border border-emerald-500/20"
+             >
+               <Download size={16} />
+               Download CSV
+             </button>
+             <button 
+               onClick={() => setShowClientBalances(false)}
+               className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-xs font-black uppercase tracking-widest backdrop-blur-md transition-all border border-white/10"
+             >
+               <ChevronLeft size={16} />
+               Back to Overview
+             </button>
+           </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-700">
+
+
+           <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                 <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                       <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-wider">Client / Vendor Name</th>
+                       <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-wider">Total Billing (INR)</th>
+                       <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-wider">Amount Paid</th>
+                       <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-wider">Balance Outstanding</th>
+                       <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-wider text-center">Status</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-50">
+                    {clientBalances.map((b, i) => (
+                       <tr key={i} className="hover:bg-slate-50/30 transition-colors group">
+                          <td className="px-8 py-6 text-sm font-black text-slate-900">{b.client}</td>
+                          <td className="px-8 py-6 text-sm font-bold text-slate-600">₹{b.total_billed.toLocaleString()}</td>
+                          <td className="px-8 py-6 text-sm font-bold text-emerald-600">₹{b.total_paid.toLocaleString()}</td>
+                          <td className="px-8 py-6 text-sm font-black text-rose-600">₹{b.balance.toLocaleString()}</td>
+                          <td className="px-8 py-6 text-center">
+                             <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                b.status === 'Cleared' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                             }`}>
+                                {b.status}
+                             </span>
+                          </td>
+                       </tr>
+                    ))}
+                 </tbody>
+                 <tfoot className="bg-slate-900 text-white font-black">
+                    <tr>
+                       <td className="px-8 py-6 text-xs uppercase tracking-widest">Total Portfolio Settlement</td>
+                       <td className="px-8 py-6 text-sm">₹{clientTotals.billed.toLocaleString()}</td>
+                       <td className="px-8 py-6 text-sm text-emerald-400">₹{clientTotals.paid.toLocaleString()}</td>
+                       <td className="px-8 py-6 text-sm text-rose-400">₹{clientTotals.balance.toLocaleString()}</td>
+                       <td className="px-8 py-6 text-center text-[10px] uppercase tracking-tighter">Final Balance</td>
+                    </tr>
+                 </tfoot>
+              </table>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
+
   if (showMasterReport) {
+
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500 pb-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900 p-8 rounded-3xl text-white shadow-2xl">
@@ -637,21 +755,13 @@ const Overview = () => {
         </div>
         <div className="flex flex-wrap gap-3 relative z-10">
            <button
-             onClick={handleInvoiceExcelExport}
-             disabled={isInvoiceExporting}
+             onClick={fetchClientBalances}
+             disabled={isClientLoading}
              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-2 border border-indigo-500/20"
            >
-             <Download size={16} />
-             {isInvoiceExporting ? 'Downloading...' : 'Download Invoice Excel'}
+             {isClientLoading ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
+             {isClientLoading ? 'Loading Ledger...' : 'View Client Settlement Ledger'}
            </button>
-           {data?.summary?.shipments_count > 0 && (
-             <button 
-                onClick={() => exportAnalyticsToExcel(data)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center gap-2 border border-emerald-500/20"
-              >
-                <Download size={16} /> Download Intelligence Ledger (Excel)
-              </button>
-           )}
            <button 
               onClick={() => setShowMasterReport(true)}
               className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all flex items-center gap-2 border border-slate-700 group"
@@ -765,6 +875,8 @@ const Overview = () => {
         </div>
       </div>
 
+
+
       {/* Main Content Area */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-h-[500px]">
         {/* Tab Navigation */}
@@ -810,6 +922,7 @@ const Overview = () => {
                   <tr className="bg-slate-50/50 border-b border-slate-100">
                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Reference ID</th>
                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Product Name</th>
+
                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Financial Value</th>
                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Sync Status</th>
                   </tr>
@@ -831,6 +944,7 @@ const Overview = () => {
                      recentShipments.map((s, i) => (
                         <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                            <td className="px-6 py-4 text-xs font-black text-slate-900">{s.shipment_code}</td>
+                           
                            <td className="px-6 py-4 text-xs font-bold text-slate-600">{s.product_name}</td>
                            <td className="px-6 py-4 text-xs font-black text-slate-900">₹{parseFloat(s.total_value).toLocaleString()}</td>
                            <td className="px-6 py-4">

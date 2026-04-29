@@ -105,3 +105,8 @@ async def get_risk(db: AsyncSession = Depends(get_db)):
 @router.get("/hsn")
 async def get_hsn(db: AsyncSession = Depends(get_db)):
     return await service.get_hsn_analytics(db)
+
+@router.get("/client-balances")
+async def get_client_balances(db: AsyncSession = Depends(get_db)):
+    return await service.get_client_balances(db)
+

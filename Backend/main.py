@@ -145,6 +145,9 @@ async def startup():
                         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shipments' AND column_name='ai_insight') THEN
                             ALTER TABLE shipments ADD COLUMN ai_insight TEXT;
                         END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shipments' AND column_name='vendor') THEN
+                            ALTER TABLE shipments ADD COLUMN vendor VARCHAR(200);
+                        END IF;
                     END $$;
                     """
                     await conn.execute(text(columns_sql))

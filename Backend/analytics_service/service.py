@@ -356,3 +356,32 @@ async def get_hsn_analytics(db: AsyncSession):
     # ✅ CACHE STORAGE
     _cache[cache_key] = (res, now + _CACHE_TTL)
     return res
+
+async def get_client_balances(db: AsyncSession):
+    """Aggregate total value and balance by client (vendor)."""
+    stmt = select(
+        Shipment.vendor.label('client'),
+        func.sum(Shipment.total_value).label('total_billed'),
+        func.sum(case((Shipment.status == 'Delivered', Shipment.total_value), else_=0)).label('total_paid')
+    ).group_by(Shipment.vendor)
+    
+    res = await fetch_query(stmt, "all")
+    
+    balances = []
+    if res:
+        for row in res:
+            client = row[0] or "General Client"
+            billed = float(row[1] or 0)
+            paid = float(row[2] or 0)
+            balance = billed - paid
+            
+            balances.append({
+                "client": client,
+                "total_billed": billed,
+                "total_paid": paid,
+                "balance": balance,
+                "status": "Cleared" if balance <= 0 else "Outstanding"
+            })
+            
+    return balances
+

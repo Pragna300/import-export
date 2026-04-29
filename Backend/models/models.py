@@ -36,6 +36,7 @@ class Shipment(Base):
     currency = Column(String(10))
     origin_country = Column(String(50))
     destination_country = Column(String(50))
+    vendor = Column(String(200), nullable=True) # The "Client" in the dashboard
     status = Column(String(50))
     current_location = Column(Text)
     ai_insight = Column(Text, nullable=True)
