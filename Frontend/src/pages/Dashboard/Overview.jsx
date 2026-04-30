@@ -85,8 +85,8 @@ const Overview = () => {
     setIsRefreshing(true);
     try {
       const [summaryRes, balancesRes] = await Promise.all([
-        fetch(`${config.API_BASE_URL}/analytics/summary?start_date=${new Date(startDate).toISOString()}&end_date=${new Date(endDate).toISOString()}`, { signal }),
-        fetch(`${config.API_BASE_URL}/analytics/client-balances`, { signal })
+        fetch(`${config.API_BASE_URL}/analytics/summary?start_date=${new Date(startDate).toISOString()}&end_date=${new Date(endDate).toISOString()}`, { signal, credentials: 'include' }),
+        fetch(`${config.API_BASE_URL}/analytics/client-balances`, { signal, credentials: 'include' })
       ]);
 
       const summaryResult = await summaryRes.json();
@@ -108,7 +108,7 @@ const Overview = () => {
   const fetchRecentShipments = async (signal) => {
     setIsShipmentsLoading(true);
     try {
-      const response = await fetch(`${config.API_BASE_URL}/shipments/?limit=5`, { signal });
+      const response = await fetch(`${config.API_BASE_URL}/shipments/?limit=5`, { signal, credentials: 'include' });
       const data = await response.json();
       setRecentShipments(data);
     } catch (err) {
@@ -124,7 +124,7 @@ const Overview = () => {
     setIsClientLoading(true);
     setShowMasterReport(false);
     try {
-      const response = await fetch(`${config.API_BASE_URL}/analytics/client-balances`);
+      const response = await fetch(`${config.API_BASE_URL}/analytics/client-balances`, { credentials: 'include' });
       const result = await response.json();
       setClientBalances(result);
       setShowClientBalances(true);

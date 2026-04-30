@@ -97,7 +97,7 @@ const Risk = () => {
   useEffect(() => {
     const fetch_ = async () => {
       try {
-        const r = await fetch(`${config.API_BASE_URL}/analytics/risk`);
+        const r = await fetch(`${config.API_BASE_URL}/analytics/risk`, { credentials: 'include' });
         const d = await r.json();
         setRiskData(d);
       } catch (e) {

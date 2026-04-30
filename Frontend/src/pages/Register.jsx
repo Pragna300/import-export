@@ -26,7 +26,8 @@ export default function Register() {
         },
         body: JSON.stringify({
           token: credentialResponse.credential
-        })
+        }),
+        credentials: 'include'
       });
 
       const data = await res.json();

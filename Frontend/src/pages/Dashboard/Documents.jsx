@@ -58,7 +58,7 @@ const AnalysisTimelineModal = ({ isOpen, docId, onFinish }) => {
     if (isOpen && docId) {
       const poll = async () => {
         try {
-          const res = await fetch(`${config_env.API_BASE_URL}/documents/${docId}`);
+          const res = await fetch(`${config_env.API_BASE_URL}/documents/${docId}`, { credentials: 'include' });
           const data = await res.json();
           setDocDetail(data);
           if (['Completed', 'Failed', 'Error', 'Failed Validation', 'Processing Error'].includes(data?.status)) {
@@ -372,7 +372,7 @@ const Documents = () => {
     setIsLoading(true);
     try {
       const skip = page * perPage;
-      const response = await fetch(`${config_env.API_BASE_URL}/documents/?skip=${skip}&limit=${perPage}`);
+      const response = await fetch(`${config_env.API_BASE_URL}/documents/?skip=${skip}&limit=${perPage}`, { credentials: 'include' });
       const data = await response.json();
       setDocs(data);
     } catch (err) {
@@ -387,7 +387,7 @@ const Documents = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
-      const response = await fetch(`${config_env.API_BASE_URL}/documents/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${config_env.API_BASE_URL}/documents/${id}`, { method: 'DELETE', credentials: 'include' });
       if (response.ok) {
         setDocs(docs.filter(d => d.id !== id));
       }
@@ -403,7 +403,7 @@ const Documents = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch(`${config_env.API_BASE_URL}/documents/upload`, { method: 'POST', body: formData });
+      const response = await fetch(`${config_env.API_BASE_URL}/documents/upload`, { method: 'POST', body: formData, credentials: 'include' });
       if (!response.ok) throw new Error(await response.text());
       const resData = await response.json();
 

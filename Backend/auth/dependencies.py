@@ -10,11 +10,25 @@ security = HTTPBearer()
 
 async def get_current_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get current user from access token in Authorization header (Async version)"""
-    token = credentials.credentials
+    """Get current user from access token in Authorization header OR Cookies"""
+    token = None
+    
+    # 1. Check Authorization Header
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    
+    # 2. Check Cookies as fallback
+    if not token:
+        token = request.cookies.get("access_token")
+        
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials were not provided",
+        )
     
     try:
         payload = jwt.decode(

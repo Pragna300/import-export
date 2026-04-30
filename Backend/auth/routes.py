@@ -32,6 +32,17 @@ async def login_for_access_token(
         data={"sub": user.email, "user_id": user.id}
     )
     
+    # Set access token as HTTP-only cookie (1 hour expiry)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False, # True in prod
+        samesite="lax",
+        max_age=3600,
+        path="/"
+    )
+    
     # Set refresh token as HTTP-only cookie
     response.set_cookie(
         key="refresh_token",
@@ -118,7 +129,11 @@ async def refresh_access_token(
 
 @router.post("/logout")
 async def logout(response: Response):
-    """Clear refresh token cookie"""
+    """Clear both access and refresh token cookies"""
+    response.delete_cookie(
+        key="access_token",
+        path="/"
+    )
     response.delete_cookie(
         key="refresh_token",
         path="/auth/refresh"
@@ -240,6 +255,7 @@ async def reset_password(
 @router.post("/google-login")
 async def google_login(
     token_data: dict,
+    response: Response,
     db: AsyncSession = Depends(get_db)
 ):
     id_token_str = token_data.get("token")
@@ -273,12 +289,32 @@ async def google_login(
         )
         user = await service.create_user(db, user_data)
 
-    # Generate tokens (reuse your system ✅)
+    # Generate tokens
     access_token = utils.create_access_token(
         data={"sub": user.email, "user_id": user.id}
     )
     refresh_token = utils.create_refresh_token(
         data={"sub": user.email, "user_id": user.id}
+    )
+
+    # Set cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=3600,
+        path="/"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,
+        path="/auth/refresh"
     )
 
     return {

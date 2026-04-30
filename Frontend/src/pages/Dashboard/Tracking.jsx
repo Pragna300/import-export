@@ -33,7 +33,7 @@ const Tracking = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${config.API_BASE_URL}/tracking/${trackingCode}`);
+      const res = await fetch(`${config.API_BASE_URL}/tracking/${trackingCode}`, { credentials: 'include' });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setTrackingData(data);

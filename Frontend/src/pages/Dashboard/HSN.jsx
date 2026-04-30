@@ -50,7 +50,7 @@ const HSN = () => {
   useEffect(() => {
     const fetchHSN = async () => {
       try {
-        const response = await fetch(`${config.API_BASE_URL}/analytics/hsn`);
+        const response = await fetch(`${config.API_BASE_URL}/analytics/hsn`, { credentials: 'include' });
         const d = await response.json();
         setData(d);
       } catch (err) {
@@ -69,7 +69,8 @@ const HSN = () => {
       const response = await fetch(`${config.API_BASE_URL}/hsn/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_name: description, persist_result: false })
+        body: JSON.stringify({ product_name: description, persist_result: false }),
+        credentials: 'include'
       });
       const result = await response.json();
       setPredictionResult(result);

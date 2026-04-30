@@ -25,7 +25,8 @@ const Login = () => {
         },
         body: JSON.stringify({
           token: credentialResponse.credential
-        })
+        }),
+        credentials: 'include'
       });
 
       const data = await res.json();
@@ -52,6 +53,7 @@ const Login = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        credentials: 'include'
       });
 
       if (response.ok) {

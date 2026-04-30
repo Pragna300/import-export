@@ -45,7 +45,8 @@ const DashboardLayout = () => {
         const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          credentials: 'include'
         });
         
         if (response.ok) {
@@ -83,7 +84,8 @@ const DashboardLayout = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(editForm),
+        credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
@@ -111,11 +113,58 @@ const DashboardLayout = () => {
     { name: 'Live Tracking', href: '/dashboard/tracking', icon: Map },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = React.useCallback(async () => {
+    try {
+      // Clear cookies on the backend
+      await fetch(`${config.API_BASE_URL}/auth/logout`, { 
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    }
+    
+    // Clear local storage
     localStorage.removeItem('access_token');
     localStorage.removeItem('cached_user_profile');
     navigate('/');
-  };
+  }, [navigate]);
+
+  // ✅ AUTO-LOGOUT AFTER 1 HOUR OF INACTIVITY
+  React.useEffect(() => {
+    let timeoutId;
+    const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 Hour
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        console.warn("User inactive for 1 hour. Auto-logging out...");
+        handleLogout();
+      }, INACTIVITY_LIMIT);
+    };
+
+    // Events that count as activity
+    const activityEvents = [
+      'mousedown', 'mousemove', 'keydown', 
+      'scroll', 'touchstart', 'click'
+    ];
+
+    // Initialize listeners
+    activityEvents.forEach(event => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Start initial timer
+    resetTimer();
+
+    // Cleanup on unmount
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [handleLogout]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">

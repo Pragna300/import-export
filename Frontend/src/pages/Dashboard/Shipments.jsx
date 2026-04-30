@@ -78,7 +78,7 @@ const Shipments = () => {
           limit: limit.toString(),
           ...(search && { search })
       });
-      const response = await fetch(`${config.API_BASE_URL}/shipments/?${queryParams}`);
+      const response = await fetch(`${config.API_BASE_URL}/shipments/?${queryParams}`, { credentials: 'include' });
       const data = await response.json();
       setShipments(data);
     } catch (err) {
@@ -103,7 +103,8 @@ const Shipments = () => {
       const response = await fetch(`${config.API_BASE_URL}/shipments/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
+        credentials: 'include'
       });
       if (!response.ok) throw new Error("Failed to create shipment");
       setIsModalOpen(false);
@@ -332,7 +333,7 @@ const Shipments = () => {
                             if(window.confirm("Initialize Ledger with 500 records from AI training dataset?")) {
                               setIsLoading(true);
                               try {
-                                const response = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST' });
+                                const response = await fetch(`${config.API_BASE_URL}/import-data`, { method: 'POST', credentials: 'include' });
                                 const data = await response.json();
                                 alert(data.message || "Import initiated!");
                                 fetchShipments();
