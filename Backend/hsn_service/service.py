@@ -8,8 +8,7 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-from .model import HSNClassifierCNN
-from .preprocessing import tokenize_and_pad
+# Heavy imports moved inside functions to prevent startup crash when torch is missing
 
 model = None
 word2idx = {"<pad>": 0, "<unk>": 1}
@@ -23,6 +22,7 @@ def load_hsn_model():
         return
         
     try:
+        from .model import HSNClassifierCNN
         vocab_size = 20000
         model = HSNClassifierCNN(vocab_size=vocab_size, embed_dim=300, num_classes=99)
         model.eval()
@@ -66,6 +66,7 @@ def _sync_ml_predict(product_name: str) -> dict:
         }
     
     try:
+        from .preprocessing import tokenize_and_pad
         tensor_input = tokenize_and_pad(product_name, word2idx)
         with torch.no_grad():
             logits = model(tensor_input)
