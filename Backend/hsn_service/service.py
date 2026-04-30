@@ -50,14 +50,17 @@ async def predict_hsn_code(db: AsyncSession, product_name: str) -> dict:
             "model_version": "HSN-Master-Lookup",
         }
 
-    # 2. ML Fallback (Run CPU-bound torch in threadpool)
+    # 2. ML Fallback (Try LLM first if Torch is missing, then sync local model)
+    if not TORCH_AVAILABLE or model is None:
+        from .llm_fallback import call_llm_for_hsn
+        return await call_llm_for_hsn(product_name)
+
     return await run_in_threadpool(_sync_ml_predict, product_name)
 
 def _sync_ml_predict(product_name: str) -> dict:
     if model is None:
-        # 🚀 FAST FALLBACK: If ML model didn't load, use a safe default
         return {
-            "hsn_code": "847130", # Default to computing machinery
+            "hsn_code": "847130", 
             "confidence_score": 50.0,
             "model_version": "Fallback-Static",
         }

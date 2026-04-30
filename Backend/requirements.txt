@@ -8,10 +8,6 @@ alembic
 redis
 aiokafka
 boto3
-scikit-learn
-transformers
-torch
-accelerate
 python-multipart
 pydantic-settings
 httpx
@@ -22,7 +18,6 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-dotenv==1.0.1
-gensim
 fastapi-mail
 google-auth
 requests
