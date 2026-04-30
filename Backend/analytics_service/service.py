@@ -81,7 +81,8 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         func.sum(Shipment.total_value),
         func.min(Shipment.unit_price),
         func.max(Shipment.total_value),
-        func.sum(case((Shipment.status == 'Delivered', Shipment.total_value), else_=0))
+        func.sum(case((Shipment.status == 'Delivered', Shipment.total_value), else_=0)),
+        func.sum(case((Shipment.status == 'Delivered', 1), else_=0))
     ), Shipment)
     
     duty_stmt = apply_filters(select(
@@ -134,6 +135,7 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
         min_price_val = float(shp_row[2] or 0)
         peak_value_val = float(shp_row[3] or 0)
         paid_amount = float(shp_row[4] or 0)
+        paid_count = int(shp_row[5] or 0)
 
     if duty_row:
         total_expenses_val = float(duty_row[0] or 0)
@@ -146,7 +148,8 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
     hsn_classified_count = hsn_val or 0
     
     # Calculate avg HSN confidence if available
-    hsn_conf_stmt = apply_filters(select(func.avg(HSNClassification.confidence_score)), Shipment).join(HSNClassification)
+    hsn_conf_stmt = select(func.avg(HSNClassification.confidence_score)).select_from(Shipment).join(HSNClassification)
+    hsn_conf_stmt = apply_filters(hsn_conf_stmt, Shipment)
     avg_hsn_conf = await fetch_query(hsn_conf_stmt, "scalar") or 0.92 # Fallback to 92% if no data
 
     pending_amount = total_revenue_val - paid_amount
@@ -235,6 +238,10 @@ async def get_dashboard_summary(db: AsyncSession, start_date: str = None, end_da
             {"name": "Classified", "value": int(hsn_classified_count), "color": "#10b981"},
             {"name": "Pending", "value": int(shipments_count - hsn_classified_count), "color": "#3b82f6"},
             {"name": "Error", "value": 0, "color": "#f43f5e"},
+        ],
+        "payment_status": [
+            {"name": "Paid", "value": int(paid_count), "color": "#10b981"},
+            {"name": "Pending", "value": int(shipments_count - paid_count), "color": "#f43f5e"},
         ],
         "history": history_series,
         "product_performance": product_performance,

@@ -497,9 +497,11 @@ const Overview = () => {
               <AccountCard label="Peak Value" value={data?.summary?.peak_value || '₹0'} subtext="Premium inventory" color="text-rose-600" />
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">Market Distribution</h4>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <Globe size={14} className="text-blue-500" /> Market Distribution
+                  </h4>
                   <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={[{name: '10k', val: 400}, {name: '20k', val: 700}, {name: '30k', val: 500}, {name: '40k', val: 300}, {name: '50k', val: 900}]}>
@@ -513,7 +515,9 @@ const Overview = () => {
                   </div>
                </div>
                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6">HSN Classification Status</h4>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <BrainCircuit size={14} className="text-blue-600" /> HSN Status
+                  </h4>
                   <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -525,6 +529,29 @@ const Overview = () => {
                           dataKey="value"
                         >
                           {(data?.hsn_status || []).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+               </div>
+               <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <DollarSign size={14} className="text-emerald-600" /> Payment Status
+                  </h4>
+                  <div className="h-48 md:h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={data?.payment_status || []}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {(data?.payment_status || []).map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
@@ -658,7 +685,7 @@ const Overview = () => {
                  {[
                    { label: 'Gross Revenue', val: data?.summary?.total_revenue || '₹0', color: 'text-blue-600' },
                    { label: 'Duty Impact', val: data?.summary?.total_expenses || '₹0', color: 'text-rose-600' },
-                   { label: 'HSN Accuracy', val: data?.summary?.paid_percent || '0%', color: 'text-emerald-600' }
+                   { label: 'HSN Accuracy', val: data?.summary?.hsn_accuracy || '0%', color: 'text-emerald-600' }
                  ].map((stat, i) => (
                    <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{stat.label}</p>
@@ -723,7 +750,7 @@ const Overview = () => {
                  </div>
                  <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Executive AI Summary</h4>
                  <p className="text-xl font-medium leading-relaxed text-slate-200">
-                    The Shnoor AI Engine has verified all current consignments with a {data?.summary?.paid_percent || '94%'} accuracy rating. 
+                    The Shnoor AI Engine has verified all current consignments with a {data?.summary?.hsn_accuracy || '94%'} accuracy rating. 
                     Financial health remains optimal with revenue significantly outperforming operational duty costs.
                  </p>
               </div>
@@ -929,7 +956,7 @@ const Overview = () => {
                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Product Name</th>
 
                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Financial Value</th>
-                     <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Sync Status</th>
+                     <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Payment Status</th>
                   </tr>
                </thead>
                <tbody className="divide-y divide-slate-50">
@@ -954,9 +981,9 @@ const Overview = () => {
                            <td className="px-6 py-4 text-xs font-black text-slate-900">₹{parseFloat(s.total_value).toLocaleString()}</td>
                            <td className="px-6 py-4">
                               <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                                 s.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                                 s.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                               }`}>
-                                 {s.status}
+                                 {s.status === 'Delivered' ? 'PAID' : 'PENDING'}
                               </span>
                            </td>
                         </tr>

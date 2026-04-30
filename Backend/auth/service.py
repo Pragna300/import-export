@@ -95,8 +95,12 @@ async def update_user_password(db: AsyncSession, user: User, new_password: str):
 
 async def verify_google_token(token: str):
     try:
+        import asyncio
         print(f"🔍 Verifying Google Token with Client ID: {GOOGLE_CLIENT_ID[:10]}...")
-        idinfo = id_token.verify_oauth2_token(
+        
+        # Wrap the synchronous Google verification in a thread to avoid blocking the event loop
+        idinfo = await asyncio.to_thread(
+            id_token.verify_oauth2_token,
             token,
             requests.Request(),
             GOOGLE_CLIENT_ID,
