@@ -10,6 +10,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=schemas.Token)
 async def login_for_access_token(
+    request: Request,
     response: Response,
     login_data: schemas.LoginRequest,
     db: AsyncSession = Depends(get_db)
@@ -32,13 +33,18 @@ async def login_for_access_token(
         data={"sub": user.email, "user_id": user.id}
     )
     
+    # Dynamic Security: Use Lax/False for local development, None/True for production
+    is_local = "localhost" in str(request.url) or "127.0.0.1" in str(request.url)
+    samesite_val = "lax" if is_local else "none"
+    secure_val = not is_local
+
     # Set access token as HTTP-only cookie (1 hour expiry)
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=secure_val,
+        samesite=samesite_val,
         max_age=3600,
         path="/"
     )
@@ -48,8 +54,8 @@ async def login_for_access_token(
         key="refresh_token",
         value=refresh_token,
         httponly=True,      
-        secure=True,       
-        samesite="none",     
+        secure=secure_val,       
+        samesite=samesite_val,     
         max_age=7 * 24 * 60 * 60,  
         path="/auth/refresh"  
     )
@@ -128,15 +134,25 @@ async def refresh_access_token(
     return {"access_token": new_access_token, "token_type": "bearer"}
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
     """Clear both access and refresh token cookies"""
+    is_local = "localhost" in str(request.url) or "127.0.0.1" in str(request.url)
+    samesite_val = "lax" if is_local else "none"
+    secure_val = not is_local
+
     response.delete_cookie(
         key="access_token",
-        path="/"
+        path="/",
+        samesite=samesite_val,
+        secure=secure_val,
+        httponly=True
     )
     response.delete_cookie(
         key="refresh_token",
-        path="/auth/refresh"
+        path="/auth/refresh",
+        samesite=samesite_val,
+        secure=secure_val,
+        httponly=True
     )
     return {"message": "Successfully logged out"}
 
@@ -254,6 +270,7 @@ async def reset_password(
 
 @router.post("/google-login")
 async def google_login(
+    request: Request,
     token_data: dict,
     response: Response,
     db: AsyncSession = Depends(get_db)
@@ -297,13 +314,18 @@ async def google_login(
         data={"sub": user.email, "user_id": user.id}
     )
 
+    # Dynamic Security
+    is_local = "localhost" in str(request.url) or "127.0.0.1" in str(request.url)
+    samesite_val = "lax" if is_local else "none"
+    secure_val = not is_local
+
     # Set cookies
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=secure_val,
+        samesite=samesite_val,
         max_age=3600,
         path="/"
     )
@@ -311,8 +333,8 @@ async def google_login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=secure_val,
+        samesite=samesite_val,
         max_age=7 * 24 * 60 * 60,
         path="/auth/refresh"
     )

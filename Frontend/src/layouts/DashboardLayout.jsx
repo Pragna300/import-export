@@ -38,14 +38,8 @@ const DashboardLayout = () => {
 
   React.useEffect(() => {
     const fetchUserProfile = async () => {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
-      
       try {
         const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
           credentials: 'include'
         });
         
@@ -63,8 +57,10 @@ const DashboardLayout = () => {
             photo_url: updatedProfile.photo_url || '' 
           });
           
-          // Cache for instant loading next time
           localStorage.setItem('cached_user_profile', JSON.stringify(updatedProfile));
+        } else if (response.status === 401) {
+          // If unauthenticated, force logout
+          handleLogout();
         }
       } catch (error) {
         console.error("Failed to fetch user profile:", error);
@@ -76,12 +72,10 @@ const DashboardLayout = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('access_token');
     try {
       const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(editForm),
@@ -133,7 +127,7 @@ const DashboardLayout = () => {
   // ✅ AUTO-LOGOUT AFTER 1 HOUR OF INACTIVITY
   React.useEffect(() => {
     let timeoutId;
-    const INACTIVITY_LIMIT = 10000;
+    const INACTIVITY_LIMIT = 0.5 * 60 * 1000;
     //const INACTIVITY_TIMEOUT = 3600000; // 1 Hour
 
     const resetTimer = () => {
