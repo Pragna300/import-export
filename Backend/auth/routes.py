@@ -37,8 +37,8 @@ async def login_for_access_token(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False, # True in prod
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=3600,
         path="/"
     )
@@ -48,8 +48,8 @@ async def login_for_access_token(
         key="refresh_token",
         value=refresh_token,
         httponly=True,      
-        secure=False,       # Set to True in production with HTTPS
-        samesite="lax",     
+        secure=True,       
+        samesite="none",     
         max_age=7 * 24 * 60 * 60,  
         path="/auth/refresh"  
     )
@@ -302,8 +302,8 @@ async def google_login(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=3600,
         path="/"
     )
@@ -311,8 +311,8 @@ async def google_login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=7 * 24 * 60 * 60,
         path="/auth/refresh"
     )
