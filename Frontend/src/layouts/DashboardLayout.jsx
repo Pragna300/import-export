@@ -133,7 +133,8 @@ const DashboardLayout = () => {
   // ✅ AUTO-LOGOUT AFTER 1 HOUR OF INACTIVITY
   React.useEffect(() => {
     let timeoutId;
-    const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 Hour
+    const INACTIVITY_LIMIT = 10000;
+    //const INACTIVITY_TIMEOUT = 3600000; // 1 Hour
 
     const resetTimer = () => {
       if (timeoutId) clearTimeout(timeoutId);
